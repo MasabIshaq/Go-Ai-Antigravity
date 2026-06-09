@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#10a37f" />
+  <meta name="description" content="Go Ai — Professional AI Assistant by Go Projects" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Go Ai" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <title>Go Ai</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/css/style.css?v=13" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+  <script>
+    (function() {
+      try {
+        var prefs = JSON.parse(localStorage.getItem(localStorage.getItem('goai_last_user') ? 'goai_prefs_' + localStorage.getItem('goai_last_user') : 'goai_prefs_guest') || '{}');
+        var theme = prefs.theme || 'light';
+        if (theme === 'system') {
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'night';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <div id="splash" class="splash">
+    <img src="/logo.png" alt="Go Ai" class="splash-logo" />
+  </div>
+
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <img src="/logo.png" alt="" class="auth-logo" />
+      <h1>Go Ai</h1>
+      <p class="auth-tagline">Sign in to continue</p>
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-tab="login">Log in</button>
+        <button type="button" class="auth-tab" data-tab="signup">Sign up</button>
+      </div>
+      <form id="loginForm" class="auth-form">
+        <label>Email or username<input type="text" name="email" required autocomplete="username" /></label>
+        <label>Password<input type="password" name="password" required autocomplete="current-password" /></label>
+        <p class="auth-error" id="loginError"></p>
+        <button type="submit" class="btn-primary">Continue</button>
+      </form>
+      <form id="signupForm" class="auth-form hidden">
+        <label>Username<input type="text" name="username" required autocomplete="username" pattern="[a-zA-Z0-9_]{3,24}" /></label>
+        <label>Email<input type="email" name="email" required autocomplete="email" /></label>
+        <label>Password<input type="password" name="password" required minlength="6" autocomplete="new-password" /></label>
+        <p class="auth-error" id="signupError"></p>
+        <button type="submit" class="btn-primary">Create account</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="app hidden" id="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <img src="/logo.png" alt="" class="sidebar-brand-icon" width="24" height="24" />
+        <span class="sidebar-brand">Go Ai</span>
+        <button type="button" class="btn-icon" id="btnHideSidebar" title="Hide menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+      </div>
+      <div class="sidebar-search-wrap">
+        <input type="search" id="chatSearch" class="sidebar-search" placeholder="Search chats & files..." autocomplete="off" />
+      </div>
+      <div class="sidebar-top">
+        <button type="button" class="btn-new-chat" id="btnNewChat">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New chat</span>
+        </button>
+        <button type="button" class="btn-temp-chat" id="btnTempChat">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/></svg>
+          <span>Temp chat</span>
+        </button>
+      </div>
+      <div class="sidebar-body">
+        <div class="sidebar-section sidebar-section-grow">
+          <p class="sidebar-label">History</p>
+          <nav class="chat-list" id="historyChatList"></nav>
+        </div>
+      </div>
+      <footer class="sidebar-footer">
+        <div class="profile-wrap" id="profileWrap">
+          <button type="button" class="profile-btn" id="profileBtn">
+            <span class="profile-avatar" id="profileAvatar">U</span>
+            <span class="profile-name" id="userChip">User</span>
+          </button>
+          <div class="profile-menu hidden" id="profileMenu">
+            <p class="profile-menu-email" id="profileEmail"></p>
+            <button type="button" class="profile-menu-item" id="btnCustomize">Customize profile</button>
+            <button type="button" class="profile-menu-item" id="btnApiKeys">API &amp; Docs</button>
+            <button type="button" class="profile-menu-item" id="btnToggleSidebar">
+              <span id="sidebarToggleLabel">Hide chat history</span>
+            </button>
+            <button type="button" class="profile-menu-item hidden" id="btnAdminPanel">Admin panel</button>
+            <button type="button" class="profile-menu-item profile-menu-danger" id="btnLogout">Log out</button>
+          </div>
+        </div>
+      </footer>
+    </aside>
+
+    <main class="main">
+      <button type="button" class="btn-float-sidebar" id="btnSidebarToggle" title="Toggle chat history">
+        <svg class="sidebar-icon-hide" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        <svg class="sidebar-icon-show hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+
+      <section class="messages-wrap" id="messagesWrap">
+        <div class="welcome" id="welcome">
+          <img src="/logo.png" alt="" class="welcome-img" />
+          <p class="welcome-sub">How can I help you today?</p>
+          <div class="suggestions">
+            <button type="button" class="suggestion" data-prompt="Who created you?">Who created you?</button>
+            <button type="button" class="suggestion" data-prompt="Write a Python hello world">Write Python code</button>
+            <button type="button" class="suggestion" data-prompt="Explain AI simply">Explain AI simply</button>
+          </div>
+        </div>
+        <div class="thread" id="thread"></div>
+      </section>
+
+      <footer class="composer-wrap">
+        <form class="composer" id="composerForm">
+          <div class="attachment-preview hidden" id="attachmentPreview"></div>
+          <div class="composer-inner">
+            <input type="file" id="fileInput" class="hidden" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.txt,.md,.py,.js,.json,.pdf,.csv,.html,.css" />
+            <button type="button" class="btn-attach" id="btnAttach" title="Attach file" aria-label="Attach">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+            </button>
+            <button type="button" class="btn-mic" id="btnMic" title="Voice input" aria-label="Microphone">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+            </button>
+            <button type="button" class="btn-go-talk" id="btnGoTalk" title="Go Talk (Continuous Voice)" aria-label="Go Talk">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+            </button>
+            <div class="composer-field">
+              <span class="composer-ph" id="composerPlaceholder">Message Go Ai...</span>
+              <textarea id="promptInput" rows="1" autocomplete="off"></textarea>
+            </div>
+            <button type="submit" class="btn-send" id="btnSend" disabled aria-label="Send">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+          <p class="composer-hint" id="composerHint">Go Ai can make mistakes. Check important info.</p>
+        </form>
+      </footer>
+    </main>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="dialog-overlay hidden" id="dialogOverlay">
+    <div class="dialog-card">
+      <h3 id="dialogTitle">Confirm</h3>
+      <p id="dialogMessage">Are you sure?</p>
+      <input id="dialogInput" class="dialog-input hidden" type="text" maxlength="80" />
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="dialogCancel">Cancel</button>
+        <button type="button" class="btn-dialog-danger" id="dialogConfirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="settingsOverlay">
+    <div class="dialog-card settings-card">
+      <h3>Customize profile</h3>
+      <p class="settings-hint">Change how you appear in chats</p>
+      <label class="settings-label">Display name
+        <input id="settingsName" type="text" maxlength="24" placeholder="Your name" />
+      </label>
+      <label class="settings-label">Profile photo
+        <input id="settingsAvatar" type="file" accept="image/*" />
+      </label>
+      <label class="settings-label">Profile icon background
+        <select id="settingsAvatarBgMode">
+          <option value="system">System default</option>
+          <option value="custom">Custom colour</option>
+        </select>
+        <input id="settingsAvatarBg" type="color" value="#303030" />
+      </label>
+      <div class="settings-preview">
+        <span class="settings-preview-avatar" id="settingsPreviewAvatar">U</span>
+        <span id="settingsPreviewName">You</span>
+      </div>
+      <label class="settings-label">Go Talk Voice
+        <select id="settingsGoTalkVoice">
+          <option value="">System Default</option>
+        </select>
+      </label>
+      <label class="settings-label">App Theme
+        <select id="settingsTheme">
+          <option value="system">System default</option>
+          <option value="night">Night (Grey)</option>
+          <option value="light">Light (White)</option>
+        </select>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="settingsCancel">Cancel</button>
+        <button type="button" class="btn-dialog-primary" id="settingsSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="adminPinOverlay">
+    <div class="dialog-card">
+      <h3 id="adminPinTitle">Admin access</h3>
+      <p id="adminPinMessage">If you are admin, enter your S-Pin to unlock admin features.</p>
+      <input id="adminPinInput" class="dialog-input" type="password" maxlength="12" placeholder="S-Pin" autocomplete="off" />
+      <p class="auth-error" id="adminPinError"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="adminPinCancel">Cancel</button>
+        <button type="button" class="btn-dialog-primary" id="adminPinConfirm">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="adminPanelOverlay">
+    <div class="dialog-card admin-panel-card">
+      <h3>Admin panel</h3>
+      <div class="admin-stats" id="adminStats"></div>
+      <h4 class="admin-reports-title">Reports</h4>
+      <div class="admin-reports-list" id="adminReportsList"></div>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="adminPanelClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="apiKeysOverlay">
+    <div class="dialog-card admin-panel-card">
+      <h3>API keys</h3>
+      <p class="settings-hint">Use keys with <a href="/developers" target="_blank">Go Ai API</a>. Keys are shown once when created.</p>
+      <div id="apiKeysList" class="api-keys-list"></div>
+      <div class="dialog-actions" style="justify-content:space-between">
+        <button type="button" class="btn-dialog-primary" id="apiKeyCreate">Create new key</button>
+        <button type="button" class="btn-dialog-secondary" id="apiKeysClose">Close</button>
+      </div>
+      <p class="auth-error hidden" id="apiKeyNewDisplay"></p>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="shareOverlay">
+    <div class="dialog-card">
+      <h3>Share chat</h3>
+      <p class="settings-hint">Direct link to this chat (like Gemini). Open while logged in, or use Profile → API for developer access.</p>
+      <input id="shareLinkInput" class="dialog-input" type="text" readonly />
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="shareClose">Close</button>
+        <button type="button" class="btn-dialog-primary" id="shareCopy">Copy link</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="sharedChatOverlay">
+    <div class="dialog-card">
+      <h3 id="sharedChatTitle">Shared chat</h3>
+      <p id="sharedChatMeta" class="settings-hint"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="sharedChatDismiss">Dismiss</button>
+        <button type="button" class="btn-dialog-primary" id="sharedChatContinue">Continue this chat</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="go-talk-screen hidden" id="goTalkScreen">
+    <div class="go-talk-bg">
+      <div class="go-talk-orb"></div>
+    </div>
+    <div class="go-talk-content">
+      <div class="go-talk-header">
+        <button type="button" class="btn-icon" id="btnGoTalkClose" title="Close Go Talk">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="go-talk-status" id="goTalkStatus">Listening...</div>
+      <div class="go-talk-transcript" id="goTalkTranscript"></div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script>
+    setTimeout(function () {
+      var s = document.getElementById("splash");
+      if (s) { s.classList.add("hide"); s.style.display = "none"; }
+    }, 1200);
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="/js/app.js?v=13"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function() {});
+    }
+  </script>
+</body>
+</html>

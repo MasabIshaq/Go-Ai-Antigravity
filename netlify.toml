@@ -1,0 +1,12 @@
+# Go Ai is a Python app — Netlify only hosts static files.
+# The full app (login, chat, AI) must run on Render instead.
+# If you still use Netlify for the UI only, set publish = "static"
+# and proxy /api to your Render URL in Site settings > Redirects.
+
+[build]
+  publish = "static"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

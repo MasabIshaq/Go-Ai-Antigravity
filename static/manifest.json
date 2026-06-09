@@ -1,0 +1,21 @@
+{
+  "name": "Go Ai",
+  "short_name": "Go Ai",
+  "description": "Go Ai — Professional AI Assistant by Go Projects",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#212121",
+  "theme_color": "#10a37f",
+  "orientation": "any",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

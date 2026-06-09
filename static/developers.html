@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Go Ai API — Developers</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <style>
+    :root { --bg:#212121; --card:#2a2a2a; --text:#ececec; --muted:#9ca3af; --accent:#10a37f; --border:#424242; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); line-height:1.6; padding:24px; }
+    .wrap { max-width:820px; margin:0 auto; }
+    h1 { font-size:1.75rem; margin-bottom:8px; }
+    h2 { margin:28px 0 10px; font-size:1.15rem; }
+    p, li { color:var(--muted); margin-bottom:10px; }
+    a { color:var(--accent); }
+    code, pre { font-family: ui-monospace, monospace; font-size:0.9rem; }
+    pre { background:#1a1a1a; border:1px solid var(--border); border-radius:10px; padding:14px; overflow-x:auto; margin:10px 0 16px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; margin:16px 0; }
+    .btn { display:inline-block; padding:10px 16px; border-radius:8px; background:var(--accent); color:#fff; text-decoration:none; font-weight:500; margin-top:8px; }
+    table { width:100%; border-collapse:collapse; margin:12px 0; font-size:0.9rem; }
+    th, td { border:1px solid var(--border); padding:8px 10px; text-align:left; }
+    th { background:#1a1a1a; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Go Ai API</h1>
+    <p>Build apps with Go Ai. Create API keys in the app under <strong>Profile → API &amp; Docs</strong>.</p>
+    <a class="btn" href="/">Open Go Ai</a>
+
+    <h2>Authentication</h2>
+    <p>Send your API key in the header:</p>
+    <pre>Authorization: Bearer goai_your_key_here</pre>
+
+    <h2>Base URL</h2>
+    <pre id="baseUrl">http://localhost:8000</pre>
+
+    <h2>Endpoints</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+      <tr><td>POST</td><td>/api/v1/chat</td><td>Stream chat (SSE)</td></tr>
+      <tr><td>GET</td><td>/api/v1/chats</td><td>List your chats</td></tr>
+      <tr><td>GET</td><td>/api/health</td><td>Health check (no auth)</td></tr>
+    </table>
+
+    <h2>Chat (streaming)</h2>
+    <pre>POST /api/v1/chat
+Content-Type: application/json
+Authorization: Bearer goai_...
+
+{
+  "messages": [
+    { "role": "user", "content": "Hello Go Ai" }
+  ]
+}</pre>
+    <p>Response is Server-Sent Events: <code>data: {"content":"..."}</code> then <code>data: [DONE]</code></p>
+
+    <h2>Python example</h2>
+    <pre>import requests
+
+API_KEY = "goai_your_key"
+url = "BASE/api/v1/chat"
+headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+data = {"messages": [{"role": "user", "content": "Hi"}]}
+
+with requests.post(url, json=data, headers=headers, stream=True) as r:
+    for line in r.iter_lines():
+        if line and line.startswith(b"data: "):
+            print(line.decode())</pre>
+
+    <h2>Manage keys (browser session)</h2>
+    <div class="card">
+      <p>Logged in via the web app:</p>
+      <pre>POST /api/keys        → create key (shown once)
+GET  /api/keys        → list keys
+DELETE /api/keys/{id} → revoke key</pre>
+    </div>
+
+    <h2>Interactive docs</h2>
+    <p>FastAPI auto-docs: <a href="/docs" target="_blank">/docs</a> · <a href="/redoc" target="_blank">/redoc</a></p>
+  </div>
+  <script>
+    document.getElementById("baseUrl").textContent = window.location.origin;
+    document.querySelector("pre:last-of-type") ||
+      document.querySelectorAll("pre")[3].textContent =
+      document.querySelectorAll("pre")[3].textContent.replace("BASE", window.location.origin);
+    document.querySelectorAll("pre").forEach(function(p) {
+      p.textContent = p.textContent.replace(/BASE/g, window.location.origin);
+    });
+  </script>
+</body>
+</html>
