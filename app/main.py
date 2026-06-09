@@ -1,3 +1,4 @@
+import asyncio
 import json
 import mimetypes
 import sqlite3
@@ -13,6 +14,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.admin_guard import is_sensitive_admin_query, last_user_message
 from app.api_keys import create_api_key, list_api_keys, revoke_api_key, user_from_api_key
 from app.auth import login, logout, signup, user_from_token
+from app.email_service import notify_admin_new_signup, send_welcome_email
 from app.config import (
     ADMIN_EMAIL,
     ADMIN_PIN,
@@ -267,6 +269,9 @@ async def api_signup(body: SignupBody, response: Response):
     except sqlite3.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
     _set_session(response, result["token"])
+    # Send emails in background (non-blocking)
+    asyncio.create_task(notify_admin_new_signup(result["user"]["username"], result["user"]["email"]))
+    asyncio.create_task(send_welcome_email(result["user"]["username"], result["user"]["email"]))
     return {"user": result["user"]}
 
 
