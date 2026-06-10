@@ -134,15 +134,13 @@ html, body {
   width: 120px;
   height: 120px;
   object-fit: contain;
-  animation: splashZoomIn 3.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-  opacity: 0;
-  transform: scale(0.8);
+  animation: splashPulse 2s infinite ease-in-out;
 }
 
-@keyframes splashZoomIn {
-  0% { opacity: 0; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.05); }
-  100% { opacity: 1; transform: scale(1); }
+@keyframes splashPulse {
+  0% { transform: scale(0.9); opacity: 0.8; filter: drop-shadow(0 0 10px rgba(16, 163, 127, 0.5)); }
+  50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 20px rgba(16, 163, 127, 0.8)); }
+  100% { transform: scale(0.9); opacity: 0.8; filter: drop-shadow(0 0 10px rgba(16, 163, 127, 0.5)); }
 }
 
 /* Auth */
