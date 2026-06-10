@@ -35,9 +35,9 @@ def main():
     # Run the command
     result = subprocess.run(cmd)
     if result.returncode == 0:
-        print("\n\n✅ Build successful! You can find GoAi.exe in the 'dist' folder.")
+        print("\n\n[SUCCESS] Build successful! You can find GoAi.exe in the 'dist' folder.")
     else:
-        print("\n\n❌ Build failed.")
+        print("\n\n[ERROR] Build failed.")
 
 if __name__ == "__main__":
     main()

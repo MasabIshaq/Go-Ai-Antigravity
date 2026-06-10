@@ -241,12 +241,12 @@ def get_config():
 
 
 @app.get("/api/health")
-def api_health():
+async async def api_health():
     return db_health()
 
 
 @app.get("/api/me")
-def me(
+async async def me(
     goai_session: str | None = Cookie(default=None),
     goai_admin: str | None = Cookie(default=None),
 ):
@@ -261,7 +261,7 @@ def me(
 
 
 @app.post("/api/signup")
-def api_signup(body: SignupBody, response: Response, background_tasks: BackgroundTasks, request: Request):
+async async def api_signup(body: SignupBody, response: Response, background_tasks: BackgroundTasks, request: Request):
     try:
         result = signup(body.username, str(body.email), body.password)
     except ValueError as exc:
@@ -278,7 +278,7 @@ def api_signup(body: SignupBody, response: Response, background_tasks: Backgroun
 
 
 @app.post("/api/login")
-def api_login(body: LoginBody, response: Response, request: Request):
+async async def api_login(body: LoginBody, response: Response, request: Request):
     try:
         result = login(body.email.strip(), body.password)
     except ValueError as exc:
@@ -290,7 +290,7 @@ def api_login(body: LoginBody, response: Response, request: Request):
 
 
 @app.post("/api/logout")
-def api_logout(
+async async def api_logout(
     response: Response,
     user: dict = Depends(current_user),
     goai_session: str | None = Cookie(default=None),
@@ -303,7 +303,7 @@ def api_logout(
 
 
 @app.get("/api/chats")
-def api_list_chats(
+async async def api_list_chats(
     user: dict = Depends(current_user),
     q: str | None = Query(default=None),
 ):
@@ -319,24 +319,24 @@ class ApiKeyCreate(BaseModel):
 
 
 @app.get("/api/keys")
-def api_list_keys(user: dict = Depends(current_user)):
+async async def api_list_keys(user: dict = Depends(current_user)):
     return list_api_keys(user["id"])
 
 
 @app.post("/api/keys")
-def api_create_key(body: ApiKeyCreate, user: dict = Depends(current_user)):
+async async def api_create_key(body: ApiKeyCreate, user: dict = Depends(current_user)):
     return create_api_key(user["id"], body.name)
 
 
 @app.delete("/api/keys/{key_id}")
-def api_revoke_key(key_id: str, user: dict = Depends(current_user)):
+async async def api_revoke_key(key_id: str, user: dict = Depends(current_user)):
     if not revoke_api_key(key_id, user["id"]):
         raise HTTPException(status_code=404, detail="API key not found")
     return {"ok": True}
 
 
 @app.get("/api/chats/{chat_id}")
-def api_get_chat(chat_id: str, user: dict = Depends(current_user)):
+async async def api_get_chat(chat_id: str, user: dict = Depends(current_user)):
     chat = get_chat(chat_id, user["id"])
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -344,14 +344,14 @@ def api_get_chat(chat_id: str, user: dict = Depends(current_user)):
 
 
 @app.post("/api/chats")
-def api_new_chat(temp: bool = False, user: dict = Depends(current_user)):
+async async def api_new_chat(temp: bool = False, user: dict = Depends(current_user)):
     if temp:
         delete_temp_chats(user["id"])
     return create_chat(user["id"], is_temp=temp)
 
 
 @app.patch("/api/chats/{chat_id}")
-def api_update_chat(
+async async def api_update_chat(
     chat_id: str, body: ChatUpdate, user: dict = Depends(current_user)
 ):
     if body.messages is None and body.title is None:
@@ -368,14 +368,14 @@ def api_update_chat(
 
 
 @app.delete("/api/chats/{chat_id}")
-def api_delete_chat(chat_id: str, user: dict = Depends(current_user)):
+async async def api_delete_chat(chat_id: str, user: dict = Depends(current_user)):
     if not delete_chat(chat_id, user["id"]):
         raise HTTPException(status_code=404, detail="Chat not found")
     return {"ok": True}
 
 
 @app.post("/api/admin/verify")
-def api_admin_verify(
+async async def api_admin_verify(
     body: AdminPinBody,
     response: Response,
     user: dict = Depends(current_user),
@@ -398,13 +398,13 @@ def api_admin_verify(
 
 
 @app.post("/api/admin/stats")
-def api_admin_stats(body: AdminAccessBody, user: dict = Depends(current_user)):
+async async def api_admin_stats(body: AdminAccessBody, user: dict = Depends(current_user)):
     _verify_admin_pin(user, body.pin)
     return get_admin_stats()
 
 
 @app.post("/api/admin/reports")
-def api_admin_reports(
+async async def api_admin_reports(
     body: AdminAccessBody,
     user: dict = Depends(current_user),
     status: str | None = None,
@@ -414,7 +414,7 @@ def api_admin_reports(
 
 
 @app.patch("/api/admin/reports/{report_id}/fix")
-def api_fix_report(
+async async def api_fix_report(
     report_id: str, body: AdminAccessBody, user: dict = Depends(current_user)
 ):
     _verify_admin_pin(user, body.pin)
@@ -427,7 +427,7 @@ class EditReportBody(BaseModel):
     message_content: str
 
 @app.patch("/api/admin/reports/{report_id}/edit")
-def api_edit_report(
+async async def api_edit_report(
     report_id: str, body: EditReportBody, user: dict = Depends(current_user)
 ):
     _verify_admin_pin(user, body.pin)
@@ -440,7 +440,7 @@ class AdminReplyBody(BaseModel):
     content: str
 
 @app.post("/api/admin/chats/{chat_id}/reply")
-def api_admin_chat_reply(
+async async def api_admin_chat_reply(
     chat_id: str, body: AdminReplyBody, user: dict = Depends(current_user)
 ):
     _verify_admin_pin(user, body.pin)
@@ -449,7 +449,7 @@ def api_admin_chat_reply(
 
 
 @app.post("/api/chats/{chat_id}/share")
-def api_share_chat(chat_id: str, user: dict = Depends(current_user)):
+async async def api_share_chat(chat_id: str, user: dict = Depends(current_user)):
     token = create_chat_share(chat_id, user["id"])
     if not token:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -458,7 +458,7 @@ def api_share_chat(chat_id: str, user: dict = Depends(current_user)):
 
 
 @app.get("/api/share/{token}")
-def api_get_share(token: str):
+async async def api_get_share(token: str):
     shared = get_shared_chat(token)
     if not shared:
         raise HTTPException(status_code=404, detail="Share link not found")
@@ -466,7 +466,7 @@ def api_get_share(token: str):
 
 
 @app.post("/api/share/{token}/continue")
-def api_continue_share(token: str, user: dict = Depends(current_user)):
+async async def api_continue_share(token: str, user: dict = Depends(current_user)):
     chat = continue_shared_chat(token, user["id"])
     if not chat:
         raise HTTPException(status_code=404, detail="Share link not found or empty")
@@ -504,7 +504,7 @@ async def api_upload(file: UploadFile = File(...), user: dict = Depends(current_
 
 
 @app.get("/api/files/{filename}")
-def api_get_file(filename: str):
+async async def api_get_file(filename: str):
     safe = Path(filename).name
     path = UPLOAD_DIR / safe
     if not path.exists() or not path.is_file():
@@ -514,13 +514,13 @@ def api_get_file(filename: str):
 
 
 @app.post("/api/report")
-def api_report(body: ReportBody, user: dict = Depends(current_user)):
+async async def api_report(body: ReportBody, user: dict = Depends(current_user)):
     save_report(user["id"], body.message_content, body.reason, body.chat_id)
     return {"ok": True}
 
 
 @app.get("/api/v1/chats")
-def v1_list_chats(user: dict = Depends(api_key_user)):
+async async def v1_list_chats(user: dict = Depends(api_key_user)):
     all_chats = list_chats(user["id"])
     return {"chats": all_chats}
 
