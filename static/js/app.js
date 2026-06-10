@@ -662,6 +662,10 @@ function speakText(text) {
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(plain.slice(0, 800));
   
+  if (navigator.language) {
+    u.lang = navigator.language;
+  }
+  
   if (state.prefs.goTalkVoice) {
     const voices = window.speechSynthesis.getVoices();
     const voice = voices.find((v) => v.name === state.prefs.goTalkVoice);
@@ -1192,8 +1196,9 @@ function setupSpeechRecognition() {
   state.recognition = new SR();
   state.recognition.continuous = false;
   state.recognition.interimResults = true;
-  // Removed hardcoded lang to support browser native or any language dynamically
-  // state.recognition.lang = "en-US";
+  if (navigator.language) {
+    state.recognition.lang = navigator.language;
+  }
 
   state.recognition.onstart = () => {
     state.isListening = true;
@@ -1740,8 +1745,6 @@ function hideSplash() {
 }
 
 async function init() {
-  showAuth();
-
   try {
     setupAuth();
     setupChat();

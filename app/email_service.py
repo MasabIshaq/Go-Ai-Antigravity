@@ -1,43 +1,47 @@
 import asyncio
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import logging
+from email.message import EmailMessage
+
 from datetime import datetime, timezone
 
-from app.config import GMAIL_USER, GMAIL_APP_PASSWORD, ADMIN_EMAIL, APP_TITLE
+import aiosmtplib
 
+from app.config import GMAIL_USER, GMAIL_APP_PASSWORD, NOTIFICATION_EMAIL, APP_TITLE
 
-def _send_email_sync(to: str, subject: str, html: str) -> None:
-    """Send an email synchronously via Gmail SMTP."""
+logger = logging.getLogger(__name__)
+
+async def send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email using aiosmtplib (non-blocking)."""
     if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-        print("[Email] Gmail credentials not configured — skipping email.")
-        return
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
+        logger.warning("SMTP credentials not configured. Skipping email.")
+        return False
+        
+    msg = EmailMessage()
     msg["From"] = f"{APP_TITLE} <{GMAIL_USER}>"
-    msg["To"] = to
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.set_content("Please enable HTML to view this email.")
+    msg.add_alternative(html_content, subtype="html")
 
-    msg.attach(MIMEText(html, "html"))
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-        server.sendmail(GMAIL_USER, to, msg.as_string())
-
-
-async def send_email(to: str, subject: str, html: str) -> None:
-    """Send email in a background thread (non-blocking)."""
-    loop = asyncio.get_event_loop()
     try:
-        await loop.run_in_executor(None, _send_email_sync, to, subject, html)
-        print(f"[Email] Sent '{subject}' → {to}")
-    except Exception as exc:
-        print(f"[Email] Failed to send to {to}: {exc}")
+        await aiosmtplib.send(
+            msg,
+            hostname="smtp.gmail.com",
+            port=465,
+            use_tls=True,
+            username=GMAIL_USER,
+            password=GMAIL_APP_PASSWORD,
+        )
+        logger.info(f"Email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {e}")
+        return False
 
 
 async def notify_admin_new_signup(username: str, email: str) -> None:
-    """Send a signup notification to the admin Gmail."""
-    if not ADMIN_EMAIL:
+    """Send a signup notification to the notification email address."""
+    if not NOTIFICATION_EMAIL:
         return
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -70,7 +74,7 @@ async def notify_admin_new_signup(username: str, email: str) -> None:
         </div>
     </div>
     """
-    await send_email(ADMIN_EMAIL, subject, html)
+    await send_email(NOTIFICATION_EMAIL, subject, html)
 
 
 async def send_welcome_email(username: str, email: str) -> None:

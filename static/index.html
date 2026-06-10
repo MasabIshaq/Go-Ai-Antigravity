@@ -32,7 +32,7 @@
     <img src="/logo.png" alt="Go Ai" class="splash-logo" />
   </div>
 
-  <div id="authScreen" class="auth-screen">
+  <div id="authScreen" class="auth-screen hidden">
     <div class="auth-card">
       <img src="/logo.png" alt="" class="auth-logo" />
       <h1>Go Ai</h1>
@@ -285,10 +285,7 @@
   <div class="toast hidden" id="toast"></div>
 
   <script>
-    setTimeout(function () {
-      var s = document.getElementById("splash");
-      if (s) { s.classList.add("hide"); s.style.display = "none"; }
-    }, 1200);
+    // Splash screen is hidden by app.js boot sequence
   </script>
   <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>

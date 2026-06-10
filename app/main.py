@@ -5,7 +5,7 @@ import sqlite3
 import uuid
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Cookie, Depends, FastAPI, File, Header, HTTPException, Query, Response, UploadFile
+from fastapi import BackgroundTasks, Request, Cookie, Depends, FastAPI, File, Header, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -130,18 +130,20 @@ class ReportBody(BaseModel):
     chat_id: str | None = None
 
 
-def _cookie_secure() -> bool:
+def _cookie_secure(request: Request = None) -> bool:
+    if request:
+        return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
     return SITE_URL.startswith("https")
 
 
-def _set_session(response: Response, token: str) -> None:
+def _set_session(response: Response, token: str, request: Request = None) -> None:
     response.set_cookie(
         key="goai_session",
         value=token,
         httponly=True,
         max_age=30 * 24 * 3600,
         samesite="lax",
-        secure=_cookie_secure(),
+        secure=_cookie_secure(request),
         path="/",
     )
 
@@ -197,54 +199,54 @@ def _with_system(messages: list[dict], user: dict) -> list[dict]:
 
 
 @app.get("/")
-async def index():
+def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/c/{chat_id}")
-async def chat_page(chat_id: str):
+def chat_page(chat_id: str):
     return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/share/{token}")
-async def share_page(token: str):
+def share_page(token: str):
     return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/developers")
-async def developers_page():
+def developers_page():
     return FileResponse(STATIC_DIR / "developers.html")
 
 
 @app.get("/manifest.json")
-async def manifest():
+def manifest():
     return FileResponse(STATIC_DIR / "manifest.json", media_type="application/manifest+json")
 
 
 @app.get("/sw.js")
-async def service_worker():
+def service_worker():
     return FileResponse(STATIC_DIR / "sw.js", media_type="application/javascript")
 
 
 @app.get("/logo.png")
-async def logo():
+def logo():
     if LOGO_PATH.exists():
         return FileResponse(LOGO_PATH, media_type="image/png")
     raise HTTPException(status_code=404)
 
 
 @app.get("/api/config")
-async def get_config():
+def get_config():
     return {"app_title": APP_TITLE}
 
 
 @app.get("/api/health")
-async def api_health():
+def api_health():
     return db_health()
 
 
 @app.get("/api/me")
-async def me(
+def me(
     goai_session: str | None = Cookie(default=None),
     goai_admin: str | None = Cookie(default=None),
 ):
@@ -259,7 +261,7 @@ async def me(
 
 
 @app.post("/api/signup")
-async def api_signup(body: SignupBody, response: Response, background_tasks: BackgroundTasks):
+def api_signup(body: SignupBody, response: Response, background_tasks: BackgroundTasks, request: Request):
     try:
         result = signup(body.username, str(body.email), body.password)
     except ValueError as exc:
@@ -268,7 +270,7 @@ async def api_signup(body: SignupBody, response: Response, background_tasks: Bac
         raise HTTPException(status_code=400, detail="Email or username already taken") from exc
     except sqlite3.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
-    _set_session(response, result["token"])
+    _set_session(response, result["token"], request)
     # Queue emails via FastAPI BackgroundTasks (works correctly on Vercel)
     background_tasks.add_task(notify_admin_new_signup, result["user"]["username"], result["user"]["email"])
     background_tasks.add_task(send_welcome_email, result["user"]["username"], result["user"]["email"])
@@ -276,19 +278,19 @@ async def api_signup(body: SignupBody, response: Response, background_tasks: Bac
 
 
 @app.post("/api/login")
-async def api_login(body: LoginBody, response: Response):
+def api_login(body: LoginBody, response: Response, request: Request):
     try:
         result = login(body.email.strip(), body.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
-    _set_session(response, result["token"])
+    _set_session(response, result["token"], request)
     return {"user": result["user"]}
 
 
 @app.post("/api/logout")
-async def api_logout(
+def api_logout(
     response: Response,
     user: dict = Depends(current_user),
     goai_session: str | None = Cookie(default=None),
@@ -301,7 +303,7 @@ async def api_logout(
 
 
 @app.get("/api/chats")
-async def api_list_chats(
+def api_list_chats(
     user: dict = Depends(current_user),
     q: str | None = Query(default=None),
 ):
@@ -317,24 +319,24 @@ class ApiKeyCreate(BaseModel):
 
 
 @app.get("/api/keys")
-async def api_list_keys(user: dict = Depends(current_user)):
+def api_list_keys(user: dict = Depends(current_user)):
     return list_api_keys(user["id"])
 
 
 @app.post("/api/keys")
-async def api_create_key(body: ApiKeyCreate, user: dict = Depends(current_user)):
+def api_create_key(body: ApiKeyCreate, user: dict = Depends(current_user)):
     return create_api_key(user["id"], body.name)
 
 
 @app.delete("/api/keys/{key_id}")
-async def api_revoke_key(key_id: str, user: dict = Depends(current_user)):
+def api_revoke_key(key_id: str, user: dict = Depends(current_user)):
     if not revoke_api_key(key_id, user["id"]):
         raise HTTPException(status_code=404, detail="API key not found")
     return {"ok": True}
 
 
 @app.get("/api/chats/{chat_id}")
-async def api_get_chat(chat_id: str, user: dict = Depends(current_user)):
+def api_get_chat(chat_id: str, user: dict = Depends(current_user)):
     chat = get_chat(chat_id, user["id"])
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -342,14 +344,14 @@ async def api_get_chat(chat_id: str, user: dict = Depends(current_user)):
 
 
 @app.post("/api/chats")
-async def api_new_chat(temp: bool = False, user: dict = Depends(current_user)):
+def api_new_chat(temp: bool = False, user: dict = Depends(current_user)):
     if temp:
         delete_temp_chats(user["id"])
     return create_chat(user["id"], is_temp=temp)
 
 
 @app.patch("/api/chats/{chat_id}")
-async def api_update_chat(
+def api_update_chat(
     chat_id: str, body: ChatUpdate, user: dict = Depends(current_user)
 ):
     if body.messages is None and body.title is None:
@@ -366,17 +368,18 @@ async def api_update_chat(
 
 
 @app.delete("/api/chats/{chat_id}")
-async def api_delete_chat(chat_id: str, user: dict = Depends(current_user)):
+def api_delete_chat(chat_id: str, user: dict = Depends(current_user)):
     if not delete_chat(chat_id, user["id"]):
         raise HTTPException(status_code=404, detail="Chat not found")
     return {"ok": True}
 
 
 @app.post("/api/admin/verify")
-async def api_admin_verify(
+def api_admin_verify(
     body: AdminPinBody,
     response: Response,
     user: dict = Depends(current_user),
+    request: Request = None,
 ):
     if not _is_admin_user(user):
         raise HTTPException(status_code=403, detail="Not an admin account")
@@ -388,20 +391,20 @@ async def api_admin_verify(
         httponly=True,
         max_age=8 * 3600,
         samesite="lax",
-        secure=_cookie_secure(),
+        secure=_cookie_secure(request),
         path="/",
     )
     return {"ok": True}
 
 
 @app.post("/api/admin/stats")
-async def api_admin_stats(body: AdminAccessBody, user: dict = Depends(current_user)):
+def api_admin_stats(body: AdminAccessBody, user: dict = Depends(current_user)):
     _verify_admin_pin(user, body.pin)
     return get_admin_stats()
 
 
 @app.post("/api/admin/reports")
-async def api_admin_reports(
+def api_admin_reports(
     body: AdminAccessBody,
     user: dict = Depends(current_user),
     status: str | None = None,
@@ -411,7 +414,7 @@ async def api_admin_reports(
 
 
 @app.patch("/api/admin/reports/{report_id}/fix")
-async def api_fix_report(
+def api_fix_report(
     report_id: str, body: AdminAccessBody, user: dict = Depends(current_user)
 ):
     _verify_admin_pin(user, body.pin)
@@ -424,7 +427,7 @@ class EditReportBody(BaseModel):
     message_content: str
 
 @app.patch("/api/admin/reports/{report_id}/edit")
-async def api_edit_report(
+def api_edit_report(
     report_id: str, body: EditReportBody, user: dict = Depends(current_user)
 ):
     _verify_admin_pin(user, body.pin)
@@ -437,7 +440,7 @@ class AdminReplyBody(BaseModel):
     content: str
 
 @app.post("/api/admin/chats/{chat_id}/reply")
-async def api_admin_chat_reply(
+def api_admin_chat_reply(
     chat_id: str, body: AdminReplyBody, user: dict = Depends(current_user)
 ):
     _verify_admin_pin(user, body.pin)
@@ -446,7 +449,7 @@ async def api_admin_chat_reply(
 
 
 @app.post("/api/chats/{chat_id}/share")
-async def api_share_chat(chat_id: str, user: dict = Depends(current_user)):
+def api_share_chat(chat_id: str, user: dict = Depends(current_user)):
     token = create_chat_share(chat_id, user["id"])
     if not token:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -455,7 +458,7 @@ async def api_share_chat(chat_id: str, user: dict = Depends(current_user)):
 
 
 @app.get("/api/share/{token}")
-async def api_get_share(token: str):
+def api_get_share(token: str):
     shared = get_shared_chat(token)
     if not shared:
         raise HTTPException(status_code=404, detail="Share link not found")
@@ -463,7 +466,7 @@ async def api_get_share(token: str):
 
 
 @app.post("/api/share/{token}/continue")
-async def api_continue_share(token: str, user: dict = Depends(current_user)):
+def api_continue_share(token: str, user: dict = Depends(current_user)):
     chat = continue_shared_chat(token, user["id"])
     if not chat:
         raise HTTPException(status_code=404, detail="Share link not found or empty")
@@ -501,7 +504,7 @@ async def api_upload(file: UploadFile = File(...), user: dict = Depends(current_
 
 
 @app.get("/api/files/{filename}")
-async def api_get_file(filename: str):
+def api_get_file(filename: str):
     safe = Path(filename).name
     path = UPLOAD_DIR / safe
     if not path.exists() or not path.is_file():
@@ -511,21 +514,21 @@ async def api_get_file(filename: str):
 
 
 @app.post("/api/report")
-async def api_report(body: ReportBody, user: dict = Depends(current_user)):
+def api_report(body: ReportBody, user: dict = Depends(current_user)):
     save_report(user["id"], body.message_content, body.reason, body.chat_id)
     return {"ok": True}
 
 
 @app.get("/api/v1/chats")
-async def v1_list_chats(user: dict = Depends(api_key_user)):
+def v1_list_chats(user: dict = Depends(api_key_user)):
     all_chats = list_chats(user["id"])
     return {"chats": all_chats}
 
 
 @app.post("/api/v1/chat")
 async def v1_chat_stream(body: ChatRequest, user: dict = Depends(api_key_user)):
-    sync_user_memory(user["id"], body.messages)
-    api_messages = _with_system(_messages_for_api(body.messages), user)
+    await asyncio.to_thread(sync_user_memory, user["id"], body.messages)
+    api_messages = await asyncio.to_thread(_with_system, _messages_for_api(body.messages), user)
 
     async def event_generator():
         try:
@@ -547,8 +550,8 @@ async def api_chat_stream(body: ChatRequest, user: dict = Depends(current_user))
                 status_code=401,
                 detail="S-Pin required for questions about Go Ai internals, API, or technical details.",
             )
-    sync_user_memory(user["id"], body.messages)
-    api_messages = _with_system(_messages_for_api(body.messages), user)
+    await asyncio.to_thread(sync_user_memory, user["id"], body.messages)
+    api_messages = await asyncio.to_thread(_with_system, _messages_for_api(body.messages), user)
 
     async def event_generator():
         used_api = False
