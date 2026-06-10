@@ -100,26 +100,72 @@ def init_db() -> None:
             pass
 
 
+class TursoRowWrapper:
+    def __init__(self, row, columns):
+        self._row = row
+        self._columns = columns
+        
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._row[key]
+        if key in self._columns:
+            idx = self._columns.index(key)
+            return self._row[idx]
+        raise KeyError(key)
+        
+    def keys(self):
+        return self._columns
+
+class TursoCursorWrapper:
+    def __init__(self, rs):
+        self.rs = rs
+        
+    def fetchone(self):
+        if self.rs and self.rs.rows:
+            return TursoRowWrapper(self.rs.rows[0], self.rs.columns)
+        return None
+        
+    def fetchall(self):
+        if self.rs and self.rs.rows:
+            return [TursoRowWrapper(row, self.rs.columns) for row in self.rs.rows]
+        return []
+
+class TursoConnectionWrapper:
+    def __init__(self, client):
+        self.client = client
+        self.row_factory = None
+        
+    def execute(self, sql, parameters=()):
+        # Convert sqlite3 ? placeholders to positional args or let libsql_client handle them
+        rs = self.client.execute(sql, parameters)
+        return TursoCursorWrapper(rs)
+                
+    def commit(self):
+        pass
+        
+    def rollback(self):
+        pass
+
+    def close(self):
+        self.client.close()
+
 @contextmanager
 def get_db():
     if _USE_TURSO:
-        import libsql_experimental as libsql
-        conn = libsql.connect(
-            database=str(DATA_DIR / "goai_local.db"),
-            sync_url=TURSO_DATABASE_URL,
+        import libsql_client
+        client = libsql_client.create_client_sync(
+            url=TURSO_DATABASE_URL,
             auth_token=TURSO_AUTH_TOKEN,
         )
-        conn.sync()
+        conn = TursoConnectionWrapper(client)
     else:
         conn = sqlite3.connect(str(DB_PATH), timeout=30, check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
-    conn.row_factory = sqlite3.Row
+        conn.row_factory = sqlite3.Row
     try:
         yield conn
         conn.commit()
-        if _USE_TURSO:
-            conn.sync()
     except Exception:
         conn.rollback()
         raise
