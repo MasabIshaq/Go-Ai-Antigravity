@@ -1,11 +1,12 @@
 import json
-import secrets
 import sqlite3
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
-from app.config import DATA_DIR, DB_PATH
+from app.config import DATA_DIR, DB_PATH, TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
+
+_USE_TURSO = bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
 
 
 def _now() -> str:
@@ -15,41 +16,40 @@ def _now() -> str:
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with get_db() as conn:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS users (
+        # Create all tables
+        statements = [
+            """CREATE TABLE IF NOT EXISTS users (
                 id TEXT PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS sessions (
+                created_at TEXT NOT NULL,
+                memory_notes TEXT NOT NULL DEFAULT ''
+            )""",
+            """CREATE TABLE IF NOT EXISTS sessions (
                 token TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
-                expires_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            );
-            CREATE TABLE IF NOT EXISTS chats (
+                expires_at TEXT NOT NULL
+            )""",
+            """CREATE TABLE IF NOT EXISTS chats (
                 id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
                 title TEXT NOT NULL DEFAULT 'New chat',
                 is_temp INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            );
-            CREATE TABLE IF NOT EXISTS messages (
+                updated_at TEXT NOT NULL
+            )""",
+            """CREATE TABLE IF NOT EXISTS messages (
                 id TEXT PRIMARY KEY,
                 chat_id TEXT NOT NULL,
                 role TEXT NOT NULL,
                 content TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (chat_id) REFERENCES chats(id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_chats_user ON chats(user_id);
-            CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id);
-            CREATE TABLE IF NOT EXISTS reports (
+                attachments TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL
+            )""",
+            "CREATE INDEX IF NOT EXISTS idx_chats_user ON chats(user_id)",
+            "CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id)",
+            """CREATE TABLE IF NOT EXISTS reports (
                 id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
                 chat_id TEXT,
@@ -57,63 +57,69 @@ def init_db() -> None:
                 reason TEXT,
                 created_at TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending'
-            );
-            CREATE TABLE IF NOT EXISTS chat_shares (
+            )""",
+            """CREATE TABLE IF NOT EXISTS chat_shares (
                 token TEXT PRIMARY KEY,
                 chat_id TEXT NOT NULL,
                 owner_id TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                messages_snapshot TEXT NOT NULL DEFAULT '[]',
-                FOREIGN KEY (chat_id) REFERENCES chats(id),
-                FOREIGN KEY (owner_id) REFERENCES users(id)
-            );
-            CREATE TABLE IF NOT EXISTS user_api_keys (
+                messages_snapshot TEXT NOT NULL DEFAULT '[]'
+            )""",
+            """CREATE TABLE IF NOT EXISTS user_api_keys (
                 id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
                 key_hash TEXT NOT NULL UNIQUE,
                 key_prefix TEXT NOT NULL,
                 name TEXT NOT NULL DEFAULT 'Default',
                 created_at TEXT NOT NULL,
-                last_used TEXT,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            );
-            """
-        )
-        msg_cols = {r[1] for r in conn.execute("PRAGMA table_info(messages)").fetchall()}
-        if msg_cols and "attachments" not in msg_cols:
+                last_used TEXT
+            )""",
+        ]
+        for stmt in statements:
+            conn.execute(stmt)
+
+        # Safe migrations — skip if column already exists
+        migrations = [
+            "ALTER TABLE messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE users ADD COLUMN memory_notes TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE reports ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'",
+            "ALTER TABLE chat_shares ADD COLUMN messages_snapshot TEXT NOT NULL DEFAULT '[]'",
+        ]
+        for stmt in migrations:
+            try:
+                conn.execute(stmt)
+            except Exception:
+                pass  # Column already exists — safe to skip
+
+        try:
             conn.execute(
-                "ALTER TABLE messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'"
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_ci "
+                "ON users(LOWER(username))"
             )
-        cols = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
-        if "memory_notes" not in cols:
-            conn.execute(
-                "ALTER TABLE users ADD COLUMN memory_notes TEXT NOT NULL DEFAULT ''"
-            )
-        report_cols = {r[1] for r in conn.execute("PRAGMA table_info(reports)").fetchall()}
-        if report_cols and "status" not in report_cols:
-            conn.execute(
-                "ALTER TABLE reports ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'"
-            )
-        conn.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_ci "
-            "ON users(LOWER(username))"
-        )
-        share_cols = {r[1] for r in conn.execute("PRAGMA table_info(chat_shares)").fetchall()}
-        if share_cols and "messages_snapshot" not in share_cols:
-            conn.execute(
-                "ALTER TABLE chat_shares ADD COLUMN messages_snapshot TEXT NOT NULL DEFAULT '[]'"
-            )
+        except Exception:
+            pass
 
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(str(DB_PATH), timeout=30, check_same_thread=False)
+    if _USE_TURSO:
+        import libsql_experimental as libsql
+        conn = libsql.connect(
+            database=str(DATA_DIR / "goai_local.db"),
+            sync_url=TURSO_DATABASE_URL,
+            auth_token=TURSO_AUTH_TOKEN,
+        )
+        conn.sync()
+    else:
+        conn = sqlite3.connect(str(DB_PATH), timeout=30, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
     try:
         yield conn
         conn.commit()
+        if _USE_TURSO:
+            conn.sync()
     except Exception:
         conn.rollback()
         raise

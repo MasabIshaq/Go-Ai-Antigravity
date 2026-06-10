@@ -16,6 +16,8 @@ ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "masabishaq452@gmail.com")
 ADMIN_PIN = os.getenv("ADMIN_PIN", "0786")
 GMAIL_USER = os.getenv("GMAIL_USER", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
+TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL", "")
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN", "")
 # On Vercel the project filesystem is read-only — use /tmp instead
 # On HuggingFace Spaces, /app/data persists in the container
 if os.getenv("VERCEL"):
