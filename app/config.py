@@ -16,7 +16,11 @@ ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "masabishaq452@gmail.com")
 ADMIN_PIN = os.getenv("ADMIN_PIN", "0786")
 GMAIL_USER = os.getenv("GMAIL_USER", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
-DATA_DIR = ROOT / "data"
+# On Vercel the project filesystem is read-only — use /tmp instead
+if os.getenv("VERCEL"):
+    DATA_DIR = Path("/tmp/goai_data")
+else:
+    DATA_DIR = ROOT / "data"
 UPLOAD_DIR = DATA_DIR / "uploads"
 DB_PATH = DATA_DIR / "goai.db"
 STATIC_DIR = ROOT / "static"
