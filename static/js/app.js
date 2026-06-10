@@ -1,4 +1,4 @@
-const ADMIN_EMAIL = "admin@goai.com";
+const ADMIN_EMAIL = "masabishaq452@gmail.com";
 const TYPE_DELAY_MS = 0;
 
 const DEFAULT_PREFS = {
