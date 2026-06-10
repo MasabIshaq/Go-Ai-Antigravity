@@ -17,6 +17,7 @@ ADMIN_PIN = os.getenv("ADMIN_PIN", "0786")
 GMAIL_USER = os.getenv("GMAIL_USER", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 # On Vercel the project filesystem is read-only — use /tmp instead
+# On HuggingFace Spaces, /app/data persists in the container
 if os.getenv("VERCEL"):
     DATA_DIR = Path("/tmp/goai_data")
 else:
