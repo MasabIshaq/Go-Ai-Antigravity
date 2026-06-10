@@ -153,8 +153,10 @@ class TursoConnectionWrapper:
 def get_db():
     if _USE_TURSO:
         import libsql_client
+        # Force HTTP instead of WebSockets for Vercel serverless compatibility
+        url = TURSO_DATABASE_URL.replace("libsql://", "https://")
         client = libsql_client.create_client_sync(
-            url=TURSO_DATABASE_URL,
+            url=url,
             auth_token=TURSO_AUTH_TOKEN,
         )
         conn = TursoConnectionWrapper(client)
