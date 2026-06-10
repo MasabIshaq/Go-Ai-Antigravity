@@ -5,7 +5,7 @@ import sqlite3
 import uuid
 from pathlib import Path
 
-from fastapi import Cookie, Depends, FastAPI, File, Header, HTTPException, Query, Response, UploadFile
+from fastapi import BackgroundTasks, Cookie, Depends, FastAPI, File, Header, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -259,7 +259,7 @@ async def me(
 
 
 @app.post("/api/signup")
-async def api_signup(body: SignupBody, response: Response):
+async def api_signup(body: SignupBody, response: Response, background_tasks: BackgroundTasks):
     try:
         result = signup(body.username, str(body.email), body.password)
     except ValueError as exc:
@@ -269,9 +269,9 @@ async def api_signup(body: SignupBody, response: Response):
     except sqlite3.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
     _set_session(response, result["token"])
-    # Send emails in background (non-blocking)
-    asyncio.create_task(notify_admin_new_signup(result["user"]["username"], result["user"]["email"]))
-    asyncio.create_task(send_welcome_email(result["user"]["username"], result["user"]["email"]))
+    # Queue emails via FastAPI BackgroundTasks (works correctly on Vercel)
+    background_tasks.add_task(notify_admin_new_signup, result["user"]["username"], result["user"]["email"])
+    background_tasks.add_task(send_welcome_email, result["user"]["username"], result["user"]["email"])
     return {"user": result["user"]}
 
 
