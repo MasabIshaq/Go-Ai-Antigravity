@@ -102,3 +102,85 @@ async def send_welcome_email(username: str, email: str) -> None:
     </div>
     """
     await send_email(email, subject, html)
+
+
+async def send_password_reset_email(username: str, email: str, reset_code: str) -> None:
+    """Send a password reset code to the user's email."""
+    subject = f"Reset your {APP_TITLE} password"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; background: #f9f9f9; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Password Reset</h1>
+            <p style="color: #a0a0c0; margin: 8px 0 0;">{APP_TITLE}</p>
+        </div>
+        <div style="padding: 30px; background: #ffffff;">
+            <h2 style="color: #1a1a2e; margin-top: 0;">Reset Your Password</h2>
+            <p style="color: #444; line-height: 1.6;">
+                Hi <strong>{username}</strong>, we received a request to reset your password.
+                Use the code below to set a new password. This code expires in <strong>15 minutes</strong>.
+            </p>
+            <div style="background: #f0f4ff; border-radius: 10px; padding: 24px; margin: 20px 0; text-align: center; border-left: 4px solid #10a37f;">
+                <p style="margin: 0; color: #888; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;">Your Reset Code</p>
+                <p style="margin: 10px 0 0; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1a1a2e; font-family: monospace;">{reset_code}</p>
+            </div>
+            <p style="color: #888; font-size: 13px;">If you did not request a password reset, you can safely ignore this email.</p>
+        </div>
+        <div style="padding: 20px; text-align: center; background: #f9f9f9; color: #999; font-size: 13px;">
+            &copy; {APP_TITLE} by Go Projects &middot; This email was sent because a reset was requested.
+        </div>
+    </div>
+    """
+    await send_email(email, subject, html)
+
+
+async def send_login_alert_email(username: str, email: str) -> None:
+    """Send an alert when a user logs in."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    subject = f"Security Alert: New login to {APP_TITLE}"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; background: #f9f9f9; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Security Alert</h1>
+            <p style="color: #a0a0c0; margin: 8px 0 0;">{APP_TITLE}</p>
+        </div>
+        <div style="padding: 30px; background: #ffffff;">
+            <p style="color: #444; line-height: 1.6;">
+                Hi <strong>{username}</strong>,<br><br>
+                Your account was just accessed at <strong>{now}</strong>.<br><br>
+                If this was you, you can safely ignore this email. If you did not log in, please reset your password immediately or contact support.
+            </p>
+        </div>
+        <div style="padding: 20px; text-align: center; background: #f9f9f9; color: #999; font-size: 13px;">
+            &copy; {APP_TITLE} by Go Projects
+        </div>
+    </div>
+    """
+    await send_email(email, subject, html)
+
+
+async def send_otp_email(username: str, email: str, otp_code: str, context: str = "Sign Up") -> None:
+    """Send an OTP code for 2FA or Signup."""
+    subject = f"Your {APP_TITLE} Verification Code"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; background: #f9f9f9; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Verification Required</h1>
+            <p style="color: #a0a0c0; margin: 8px 0 0;">{context}</p>
+        </div>
+        <div style="padding: 30px; background: #ffffff;">
+            <h2 style="color: #1a1a2e; margin-top: 0;">Your Verification Code</h2>
+            <p style="color: #444; line-height: 1.6;">
+                Hi <strong>{username}</strong>,<br><br>
+                Use the following 6-digit code to complete your {context.lower()}. This code expires in 15 minutes.
+            </p>
+            <div style="background: #f0f4ff; border-radius: 10px; padding: 24px; margin: 20px 0; text-align: center; border-left: 4px solid #4f46e5;">
+                <p style="margin: 0; font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1a1a2e; font-family: monospace;">{otp_code}</p>
+            </div>
+            <p style="color: #888; font-size: 13px;">If you didn't request this code, please ignore this email.</p>
+        </div>
+        <div style="padding: 20px; text-align: center; background: #f9f9f9; color: #999; font-size: 13px;">
+            &copy; {APP_TITLE} by Go Projects
+        </div>
+    </div>
+    """
+    await send_email(email, subject, html)

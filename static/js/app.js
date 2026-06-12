@@ -1,4 +1,4 @@
-const ADMIN_EMAIL = "masabishaq452@gmail.com";
+const ADMIN_EMAIL = "admin@goai.com";
 const TYPE_DELAY_MS = 0;
 
 const DEFAULT_PREFS = {
@@ -107,6 +107,7 @@ const els = {
   adminPinConfirm: $("#adminPinConfirm"),
   adminPanelOverlay: $("#adminPanelOverlay"),
   adminStats: $("#adminStats"),
+  btnServerToggle: $("#btnServerToggle"),
   adminReportsList: $("#adminReportsList"),
   adminPanelClose: $("#adminPanelClose"),
   toast: $("#toast"),
@@ -129,6 +130,25 @@ const els = {
   goTalkTranscript: $("#goTalkTranscript"),
   btnGoTalkClose: $("#btnGoTalkClose"),
   settingsGoTalkVoice: $("#settingsGoTalkVoice"),
+  otpOverlay: $("#otpOverlay"),
+  otpInput: $("#otpInput"),
+  otpError: $("#otpError"),
+  otpCancel: $("#otpCancel"),
+  otpConfirm: $("#otpConfirm"),
+  settingsTwoFa: $("#settingsTwoFa"),
+  settingsNotifications: $("#settingsNotifications"),
+  forgotPasswordOverlay: $("#forgotPasswordOverlay"),
+  forgotPasswordEmail: $("#forgotPasswordEmail"),
+  forgotPasswordError: $("#forgotPasswordError"),
+  forgotPasswordCancel: $("#forgotPasswordCancel"),
+  forgotPasswordSend: $("#forgotPasswordSend"),
+  resetPasswordOverlay: $("#resetPasswordOverlay"),
+  resetPasswordCode: $("#resetPasswordCode"),
+  resetPasswordNew: $("#resetPasswordNew"),
+  resetPasswordError: $("#resetPasswordError"),
+  resetPasswordCancel: $("#resetPasswordCancel"),
+  resetPasswordConfirm: $("#resetPasswordConfirm"),
+  btnForgotPassword: $("#btnForgotPassword"),
 };
 
 const SENSITIVE_PATTERNS = [
@@ -767,10 +787,10 @@ async function streamResponse(adminPin = null) {
       contentEl = assistantEl.querySelector(".turn-content");
     }
     let emsg = err.message || "Unknown error";
-    if (emsg.includes("fetch") || emsg.includes("Failed") || emsg.includes("network")) {
-      emsg = "The API timed out or the connection failed. Please try again.";
+    if (emsg.includes("fetch") || emsg.includes("Failed") || emsg.includes("network") || emsg.includes("ZAIError")) {
+      emsg = "We are facing some errors check your connection or may be our server is closed due to update";
     }
-    state.messages[idx].content = `Sorry, something went wrong: ${emsg}`;
+    state.messages[idx].content = emsg;
     contentEl.innerHTML = renderMarkdown(state.messages[idx].content);
     if (state.goTalkActive && els.goTalkTranscript) {
       els.goTalkTranscript.textContent = state.messages[idx].content;
@@ -1078,6 +1098,30 @@ async function openAdminPanel() {
       <div class="admin-stat"><strong>${stats.chats}</strong><span>Chats</span></div>
       <div class="admin-stat"><strong>${stats.messages}</strong><span>Messages</span></div>
       <div class="admin-stat"><strong>${stats.pending_reports ?? stats.reports}</strong><span>Pending reports</span></div>`;
+    
+    const serverStopped = stats.server_stopped || false;
+    els.adminStats.insertAdjacentHTML('afterend', `
+      <div style="margin-top: 20px;">
+        <label style="display:flex; align-items:center; gap: 8px;">
+          <input type="checkbox" id="serverStopToggle" ${serverStopped ? 'checked' : ''}>
+          <strong>Stop Go Ai Server</strong>
+        </label>
+        <p class="settings-hint">When checked, users will receive "Server is stop" instead of AI responses.</p>
+      </div>
+    `);
+    document.getElementById("serverStopToggle").addEventListener("change", async (e) => {
+      try {
+        await api("/api/admin/server-state", {
+          method: "POST",
+          body: JSON.stringify({ pin: state.lastAdminPin, stopped: e.target.checked })
+        });
+        showToast(e.target.checked ? "Server stopped" : "Server started");
+      } catch(err) {
+        alert(err.message);
+        e.target.checked = !e.target.checked;
+      }
+    });
+
     renderAdminReports(reports);
     els.adminPanelOverlay.classList.remove("hidden");
   } catch (err) {
@@ -1177,6 +1221,15 @@ function openSettings() {
   els.settingsPreviewName.textContent = els.settingsName.value || "You";
   els.settingsPreviewAvatar.innerHTML = avatarHtml();
   if (!state.prefs.avatar) els.settingsPreviewAvatar.textContent = userInitial();
+  
+  api("/api/settings")
+    .then(res => res.json())
+    .then(data => {
+      els.settingsTwoFa.checked = data.two_fa_enabled;
+      els.settingsNotifications.checked = data.notifications_enabled;
+    })
+    .catch(err => console.error("Could not load server settings", err));
+
   els.settingsOverlay.classList.remove("hidden");
 }
 
@@ -1451,16 +1504,25 @@ function setupAuth() {
     els.loginError.textContent = "";
     const fd = new FormData(els.loginForm);
     try {
-      await api("/api/login", {
+      const res = await fetch("/api/login", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: fd.get("email"), password: fd.get("password") }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+      
+      if (data.requires_verification || data.requires_2fa) {
+        state.pendingUserId = data.user_id;
+        els.otpOverlay.classList.remove("hidden");
+        els.otpInput.value = "";
+        els.otpInput.focus();
+        return;
+      }
+      
       await afterAuthSuccess();
     } catch (err) {
-      els.loginError.textContent =
-        err.message.includes("fetch") || err.message.includes("Failed")
-          ? "Server not running. Run: python run.py then open http://localhost:8000"
-          : err.message;
+      els.loginError.textContent = err.message;
     }
   });
 
@@ -1469,20 +1531,86 @@ function setupAuth() {
     els.signupError.textContent = "";
     const fd = new FormData(els.signupForm);
     try {
-      await api("/api/signup", {
+      const res = await fetch("/api/signup", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: fd.get("username"),
           email: fd.get("email"),
           password: fd.get("password"),
+          agreed_terms: fd.get("agreed_terms") === "on",
+          notifications_enabled: fd.get("notifications_enabled") === "on",
         }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Signup failed");
+      
+      if (data.requires_verification) {
+        state.pendingUserId = data.user_id;
+        els.otpOverlay.classList.remove("hidden");
+        els.otpInput.value = "";
+        els.otpInput.focus();
+        return;
+      }
+      
       await afterAuthSuccess();
     } catch (err) {
-      els.signupError.textContent =
-        err.message.includes("fetch") || err.message.includes("Failed")
-          ? "Server not running. Run: python run.py then open http://localhost:8000"
-          : err.message;
+      els.signupError.textContent = err.message;
+    }
+  });
+
+  els.otpCancel.addEventListener("click", () => els.otpOverlay.classList.add("hidden"));
+  els.otpConfirm.addEventListener("click", async () => {
+    els.otpError.textContent = "";
+    const code = els.otpInput.value.trim();
+    if (!code) return;
+    try {
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: state.pendingUserId, otp_code: code }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Invalid code");
+      els.otpOverlay.classList.add("hidden");
+      await afterAuthSuccess();
+    } catch (err) {
+      els.otpError.textContent = err.message;
+    }
+  });
+
+  els.btnForgotPassword.addEventListener("click", () => {
+    els.forgotPasswordOverlay.classList.remove("hidden");
+    els.forgotPasswordError.textContent = "";
+    els.forgotPasswordEmail.value = "";
+  });
+  els.forgotPasswordCancel.addEventListener("click", () => els.forgotPasswordOverlay.classList.add("hidden"));
+  els.forgotPasswordSend.addEventListener("click", async () => {
+    els.forgotPasswordError.textContent = "";
+    const email = els.forgotPasswordEmail.value.trim();
+    if (!email) return;
+    try {
+      await api("/api/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+      els.forgotPasswordOverlay.classList.add("hidden");
+      els.resetPasswordOverlay.classList.remove("hidden");
+      els.resetPasswordError.textContent = "";
+    } catch (err) {
+      els.forgotPasswordError.textContent = err.message;
+    }
+  });
+
+  els.resetPasswordCancel.addEventListener("click", () => els.resetPasswordOverlay.classList.add("hidden"));
+  els.resetPasswordConfirm.addEventListener("click", async () => {
+    els.resetPasswordError.textContent = "";
+    const token = els.resetPasswordCode.value.trim();
+    const new_password = els.resetPasswordNew.value;
+    if (!token || !new_password) return;
+    try {
+      await api("/api/reset-password", { method: "POST", body: JSON.stringify({ token, new_password }) });
+      els.resetPasswordOverlay.classList.add("hidden");
+      showToast("Password updated. Please log in.");
+    } catch (err) {
+      els.resetPasswordError.textContent = err.message;
     }
   });
 }
@@ -1686,7 +1814,7 @@ function setupChat() {
     reader.readAsDataURL(file);
   });
 
-  els.settingsSave.addEventListener("click", () => {
+  els.settingsSave.addEventListener("click", async () => {
     state.prefs.displayName = els.settingsName.value.trim();
     const themeSelect = $("#settingsTheme");
     if (themeSelect) state.prefs.theme = themeSelect.value;
@@ -1696,6 +1824,19 @@ function setupChat() {
     savePrefs();
     setProfileUI();
     renderThread();
+    
+    try {
+      await api("/api/settings", {
+        method: "POST",
+        body: JSON.stringify({
+          two_fa_enabled: els.settingsTwoFa.checked,
+          notifications_enabled: els.settingsNotifications.checked
+        })
+      });
+    } catch (err) {
+      console.error("Could not save server settings", err);
+    }
+    
     els.settingsOverlay.classList.add("hidden");
     showToast("Profile updated");
   });
@@ -1773,3 +1914,28 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
+
+// Forgot Password
+const fpBtn = document.createElement("button");
+fpBtn.type = "button";
+fpBtn.className = "btn-secondary";
+fpBtn.style.marginTop = "10px";
+fpBtn.textContent = "Forgot password?";
+fpBtn.onclick = async () => {
+  const email = prompt("Enter your email address to reset password:");
+  if (!email) return;
+  try {
+    const res = await api("/api/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+    const code = prompt("Check your email for the reset code.\nEnter reset code:");
+    if (!code) return;
+    const newPass = prompt("Enter new password (min 6 chars):");
+    if (!newPass) return;
+    await api("/api/reset-password", { method: "POST", body: JSON.stringify({ token: code, new_password: newPass }) });
+    alert("Password reset successful. You can now log in.");
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+};
+document.querySelector("#loginForm").appendChild(fpBtn);
+

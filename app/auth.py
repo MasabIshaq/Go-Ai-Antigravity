@@ -69,10 +69,12 @@ def user_from_token(token: str | None) -> dict | None:
         return None
 
 
-def signup(username: str, email: str, password: str) -> dict:
+def signup(username: str, email: str, password: str, agreed_terms: bool = False, notifications_enabled: bool = False) -> dict:
     username = username.strip()
     email = email.strip().lower()
 
+    if not agreed_terms:
+        raise ValueError("You must agree to the Terms and Conditions")
     if not validate_username(username):
         raise ValueError("Username: 3\u201324 letters, numbers, underscore only")
     if not validate_email(email):
@@ -85,7 +87,7 @@ def signup(username: str, email: str, password: str) -> dict:
     if get_user_by_username(username):
         raise ValueError("Username already taken")
 
-    user = create_user(username, email, hash_password(password))
+    user = create_user(username, email, hash_password(password), agreed_terms, notifications_enabled, False)
     token, expires = _create_jwt(user)
     return {"user": user, "token": token, "expires_at": expires}
 

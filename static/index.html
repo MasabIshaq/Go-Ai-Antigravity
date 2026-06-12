@@ -33,6 +33,15 @@
   </div>
 
   <div id="authScreen" class="auth-screen hidden">
+    <div class="landing-content" style="flex: 1; max-width: 500px; display: flex; flex-direction: column; gap: 16px; margin-right: 40px;">
+       <h1 style="font-size: 2.5rem; font-weight: 700; color: #10a37f; margin:0;">Welcome to Go Ai</h1>
+       <p style="font-size: 1.2rem; color: var(--text-secondary); margin:0;">Your Personal, Intelligent, and Secure AI Assistant.</p>
+       <ul style="list-style: none; margin-top: 10px; padding: 0; line-height: 2.0; font-size: 1.1rem; color: var(--text-primary);">
+          <li>✨ Advanced Conversational AI</li>
+          <li>🔒 Bank-level Security & 2FA</li>
+          <li>🎙️ Seamless Voice Interactions</li>
+       </ul>
+    </div>
     <div class="auth-card">
       <img src="/logo.png" alt="" class="auth-logo" />
       <h1>Go Ai</h1>
@@ -44,6 +53,7 @@
       <form id="loginForm" class="auth-form">
         <label>Email or username<input type="text" name="email" required autocomplete="username" /></label>
         <label>Password<input type="password" name="password" required autocomplete="current-password" /></label>
+        <button type="button" class="btn-forgot-password" id="btnForgotPassword">Forgot password?</button>
         <p class="auth-error" id="loginError"></p>
         <button type="submit" class="btn-primary">Continue</button>
       </form>
@@ -51,6 +61,8 @@
         <label>Username<input type="text" name="username" required autocomplete="username" pattern="[a-zA-Z0-9_]{3,24}" /></label>
         <label>Email<input type="email" name="email" required autocomplete="email" /></label>
         <label>Password<input type="password" name="password" required minlength="6" autocomplete="new-password" /></label>
+        <label class="auth-checkbox"><input type="checkbox" name="agreed_terms" required /> I agree to the <a href="#" id="linkTerms">Terms and Conditions</a> of Go Projects</label>
+        <label class="auth-checkbox"><input type="checkbox" name="notifications_enabled" /> Receive notifications and emails about updates (optional)</label>
         <p class="auth-error" id="signupError"></p>
         <button type="submit" class="btn-primary">Create account</button>
       </form>
@@ -199,6 +211,12 @@
           <option value="light">Light (White)</option>
         </select>
       </label>
+      <label class="settings-label settings-checkbox-label">
+        <input type="checkbox" id="settingsTwoFa" /> Enable Two-Factor Authentication (2FA) via Email
+      </label>
+      <label class="settings-label settings-checkbox-label">
+        <input type="checkbox" id="settingsNotifications" /> Receive notifications & emails about updates
+      </label>
       <div class="dialog-actions">
         <button type="button" class="btn-dialog-secondary" id="settingsCancel">Cancel</button>
         <button type="button" class="btn-dialog-primary" id="settingsSave">Save</button>
@@ -279,6 +297,46 @@
       </div>
       <div class="go-talk-status" id="goTalkStatus">Listening...</div>
       <div class="go-talk-transcript" id="goTalkTranscript"></div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="otpOverlay">
+    <div class="dialog-card">
+      <h3 id="otpTitle">Verification Required</h3>
+      <p class="settings-hint">Please enter the 6-digit code sent to your email.</p>
+      <input id="otpInput" class="dialog-input" type="text" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="text-align: center; letter-spacing: 0.5em; font-size: 1.5em;" />
+      <p class="auth-error" id="otpError"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="otpCancel">Cancel</button>
+        <button type="button" class="btn-dialog-primary" id="otpConfirm">Verify</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="forgotPasswordOverlay">
+    <div class="dialog-card">
+      <h3>Reset Password</h3>
+      <p class="settings-hint">Enter your email to receive a password reset code.</p>
+      <input id="forgotPasswordEmail" class="dialog-input" type="email" placeholder="name@example.com" />
+      <p class="auth-error" id="forgotPasswordError"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="forgotPasswordCancel">Cancel</button>
+        <button type="button" class="btn-dialog-primary" id="forgotPasswordSend">Send Code</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-overlay hidden" id="resetPasswordOverlay">
+    <div class="dialog-card">
+      <h3>Set New Password</h3>
+      <p class="settings-hint">Enter the reset code sent to your email and your new password.</p>
+      <input id="resetPasswordCode" class="dialog-input" type="text" placeholder="Reset Code" style="margin-bottom: 10px;" />
+      <input id="resetPasswordNew" class="dialog-input" type="password" placeholder="New Password" />
+      <p class="auth-error" id="resetPasswordError"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn-dialog-secondary" id="resetPasswordCancel">Cancel</button>
+        <button type="button" class="btn-dialog-primary" id="resetPasswordConfirm">Reset Password</button>
+      </div>
     </div>
   </div>
 

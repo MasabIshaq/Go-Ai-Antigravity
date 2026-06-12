@@ -74,6 +74,17 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 last_used TEXT
             )""",
+            """CREATE TABLE IF NOT EXISTS server_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )""",
+            """CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                token TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                email TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                used INTEGER NOT NULL DEFAULT 0
+            )""",
         ]
         for stmt in statements:
             conn.execute(stmt)
@@ -84,6 +95,12 @@ def init_db() -> None:
             "ALTER TABLE users ADD COLUMN memory_notes TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE reports ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'",
             "ALTER TABLE chat_shares ADD COLUMN messages_snapshot TEXT NOT NULL DEFAULT '[]'",
+            "ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN two_fa_enabled INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN notifications_enabled INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN agreed_terms INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN otp_code TEXT",
+            "ALTER TABLE users ADD COLUMN otp_expires_at TEXT",
         ]
         for stmt in migrations:
             try:
@@ -184,7 +201,7 @@ def db_health() -> dict:
         return {"ok": False, "error": str(exc), "path": str(DB_PATH)}
 
 
-def create_user(username: str, email: str, password_hash: str) -> dict:
+def create_user(username: str, email: str, password_hash: str, agreed_terms: bool = True, notifications_enabled: bool = False, is_verified: bool = False) -> dict:
     user_id = str(uuid.uuid4())
     username = username.strip()
     email = email.strip().lower()
@@ -195,9 +212,9 @@ def create_user(username: str, email: str, password_hash: str) -> dict:
     with get_db() as conn:
         conn.execute(
             """INSERT INTO users
-               (id, username, email, password_hash, created_at, memory_notes)
-               VALUES (?,?,?,?,?,?)""",
-            (user_id, username, email, password_hash, _now(), ""),
+               (id, username, email, password_hash, created_at, memory_notes, agreed_terms, notifications_enabled, is_verified)
+               VALUES (?,?,?,?,?,?,?,?,?)""",
+            (user_id, username, email, password_hash, _now(), "", 1 if agreed_terms else 0, 1 if notifications_enabled else 0, 1 if is_verified else 0),
         )
     return {"id": user_id, "username": username, "email": email}
 
@@ -657,3 +674,92 @@ def title_from_message(text: str, max_len: int = 40) -> str:
     if len(cleaned) <= max_len:
         return cleaned or "New chat"
     return cleaned[: max_len - 3] + "..."
+
+
+# ─── Server stop/start ────────────────────────────────────────────────────────
+
+def get_server_stopped():
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT value FROM server_settings WHERE key = 'server_stopped'"
+        ).fetchone()
+        return bool(row and row["value"] == "1")
+
+
+def set_server_stopped(stopped):
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO server_settings(key, value) VALUES('server_stopped', ?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            ("1" if stopped else "0",),
+        )
+
+
+# ─── Password reset ───────────────────────────────────────────────────────────
+
+def create_password_reset_token(user_id, email):
+    import secrets
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE password_reset_tokens SET used=1 WHERE user_id=? AND used=0",
+            (user_id,),
+        )
+    token = secrets.token_urlsafe(32)
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO password_reset_tokens(token, user_id, email, created_at) VALUES(?,?,?,?)",
+            (token, user_id, email, _now()),
+        )
+    return token
+
+
+def get_password_reset_token(token):
+    from datetime import timedelta, datetime, timezone
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM password_reset_tokens WHERE token=? AND used=0",
+            (token,),
+        ).fetchone()
+    if not row:
+        return None
+    created = datetime.fromisoformat(row["created_at"])
+    if datetime.now(timezone.utc) - created > timedelta(minutes=15):
+        return None
+    return dict(row)
+
+
+def use_password_reset_token(token, new_password_hash):
+    data = get_password_reset_token(token)
+    if not data:
+        return False
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash=? WHERE id=?",
+            (new_password_hash, data["user_id"]),
+        )
+        conn.execute(
+            "UPDATE password_reset_tokens SET used=1 WHERE token=?",
+            (token,),
+        )
+    return True
+
+
+def set_user_otp(user_id: str, otp_code: str, expires_at: str) -> None:
+    with get_db() as conn:
+        conn.execute("UPDATE users SET otp_code=?, otp_expires_at=? WHERE id=?", (otp_code, expires_at, user_id))
+
+
+def verify_user_otp(user_id: str, otp_code: str) -> bool:
+    with get_db() as conn:
+        row = conn.execute("SELECT otp_code, otp_expires_at FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row or row["otp_code"] != otp_code:
+            return False
+        if row["otp_expires_at"] and _now() > row["otp_expires_at"]:
+            return False
+        conn.execute("UPDATE users SET is_verified=1, otp_code=NULL, otp_expires_at=NULL WHERE id=?", (user_id,))
+        return True
+
+
+def update_user_settings(user_id: str, two_fa_enabled: bool, notifications_enabled: bool) -> None:
+    with get_db() as conn:
+        conn.execute("UPDATE users SET two_fa_enabled=?, notifications_enabled=? WHERE id=?", (1 if two_fa_enabled else 0, 1 if notifications_enabled else 0, user_id))

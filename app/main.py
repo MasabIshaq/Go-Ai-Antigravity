@@ -13,8 +13,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.admin_guard import is_sensitive_admin_query, last_user_message
 from app.api_keys import create_api_key, list_api_keys, revoke_api_key, user_from_api_key
-from app.auth import login, logout, signup, user_from_token
-from app.email_service import notify_admin_new_signup, send_welcome_email
+from app.auth import login, logout, signup, user_from_token, validate_password, hash_password
+from app.email_service import notify_admin_new_signup, send_welcome_email, send_password_reset_email, send_login_alert_email, send_otp_email
 from app.config import (
     ADMIN_EMAIL,
     ADMIN_PIN,
@@ -47,6 +47,17 @@ from app.database import (
     sync_user_memory,
     edit_report_message,
     append_admin_reply,
+    get_server_stopped,
+    set_server_stopped,
+    create_password_reset_token,
+    get_password_reset_token,
+    use_password_reset_token,
+    get_user_by_email,
+    get_user_by_username,
+    get_user_by_id,
+    set_user_otp,
+    verify_user_otp,
+    update_user_settings,
 )
 from app.openrouter import ZAIError, stream_chat
 
@@ -99,6 +110,8 @@ class SignupBody(BaseModel):
     username: str = Field(..., min_length=3, max_length=24)
     email: EmailStr
     password: str = Field(..., min_length=6)
+    agreed_terms: bool = False
+    notifications_enabled: bool = False
 
 
 class LoginBody(BaseModel):
@@ -182,7 +195,7 @@ def _messages_for_api(messages: list[dict]) -> list[dict]:
 
 
 def _build_system_prompt(user: dict) -> str:
-    parts = [SYSTEM_PROMPT, f"\n\nThe logged-in user's username is {user['username']}."]
+    parts = [SYSTEM_PROMPT]
     memory = get_user_memory(user["id"])
     if memory:
         parts.append(f"\n\nKnown information about this user:\n{memory}")
@@ -263,30 +276,128 @@ async def me(
 @app.post("/api/signup")
 async def api_signup(body: SignupBody, response: Response, background_tasks: BackgroundTasks, request: Request):
     try:
-        result = signup(body.username, str(body.email), body.password)
+        result = signup(body.username, str(body.email), body.password, body.agreed_terms, body.notifications_enabled)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.IntegrityError as exc:
         raise HTTPException(status_code=400, detail="Email or username already taken") from exc
     except sqlite3.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
-    _set_session(response, result["token"], request)
-    # Queue emails via FastAPI BackgroundTasks (works correctly on Vercel)
-    background_tasks.add_task(notify_admin_new_signup, result["user"]["username"], result["user"]["email"])
-    background_tasks.add_task(send_welcome_email, result["user"]["username"], result["user"]["email"])
-    return {"user": result["user"]}
+
+    import secrets
+    from datetime import datetime, timedelta, timezone
+    otp = str(secrets.randbelow(1000000)).zfill(6)
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+    set_user_otp(result["user"]["id"], otp, expires)
+    
+    background_tasks.add_task(send_otp_email, result["user"]["username"], result["user"]["email"], otp, "Sign Up")
+    return {"requires_verification": True, "user_id": result["user"]["id"], "email": result["user"]["email"]}
 
 
 @app.post("/api/login")
-async def api_login(body: LoginBody, response: Response, request: Request):
+async def api_login(body: LoginBody, response: Response, background_tasks: BackgroundTasks, request: Request):
     try:
         result = login(body.email.strip(), body.password)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
+        
+    user_db = get_user_by_id(result["user"]["id"])
+    if not user_db["is_verified"]:
+        import secrets
+        from datetime import datetime, timedelta, timezone
+        otp = str(secrets.randbelow(1000000)).zfill(6)
+        expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        set_user_otp(result["user"]["id"], otp, expires)
+        background_tasks.add_task(send_otp_email, result["user"]["username"], result["user"]["email"], otp, "Sign Up")
+        return {"requires_verification": True, "user_id": result["user"]["id"], "email": result["user"]["email"]}
+        
+    if user_db["two_fa_enabled"]:
+        import secrets
+        from datetime import datetime, timedelta, timezone
+        otp = str(secrets.randbelow(1000000)).zfill(6)
+        expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        set_user_otp(result["user"]["id"], otp, expires)
+        background_tasks.add_task(send_otp_email, result["user"]["username"], result["user"]["email"], otp, "Login 2FA")
+        return {"requires_2fa": True, "user_id": result["user"]["id"], "email": result["user"]["email"]}
+
     _set_session(response, result["token"], request)
+    background_tasks.add_task(send_login_alert_email, result["user"]["username"], result["user"]["email"])
     return {"user": result["user"]}
+
+
+class VerifyOtpBody(BaseModel):
+    user_id: str
+    otp_code: str
+
+@app.post("/api/verify-otp")
+async def api_verify_otp(body: VerifyOtpBody, response: Response, background_tasks: BackgroundTasks, request: Request):
+    user_db = get_user_by_id(body.user_id)
+    if not user_db:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    was_unverified = not user_db["is_verified"]
+    
+    if not verify_user_otp(body.user_id, body.otp_code):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    
+    from app.auth import _create_jwt
+    user_dict = {"id": user_db["id"], "username": user_db["username"], "email": user_db["email"]}
+    token, expires = _create_jwt(user_dict)
+    
+    _set_session(response, token, request)
+    if was_unverified:
+        background_tasks.add_task(notify_admin_new_signup, user_dict["username"], user_dict["email"])
+        background_tasks.add_task(send_welcome_email, user_dict["username"], user_dict["email"])
+    else:
+        background_tasks.add_task(send_login_alert_email, user_dict["username"], user_dict["email"])
+        
+    return {"user": user_dict}
+
+
+class SettingsBody(BaseModel):
+    two_fa_enabled: bool
+    notifications_enabled: bool
+
+@app.post("/api/settings")
+async def api_settings(body: SettingsBody, user: dict = Depends(current_user)):
+    update_user_settings(user["id"], body.two_fa_enabled, body.notifications_enabled)
+    return {"ok": True}
+    
+@app.get("/api/settings")
+async def api_get_settings(user: dict = Depends(current_user)):
+    user_db = get_user_by_id(user["id"])
+    return {
+        "two_fa_enabled": bool(user_db["two_fa_enabled"]),
+        "notifications_enabled": bool(user_db["notifications_enabled"])
+    }
+
+
+
+class ForgotPasswordBody(BaseModel):
+    email: EmailStr
+
+@app.post("/api/forgot-password")
+async def api_forgot_password(body: ForgotPasswordBody, background_tasks: BackgroundTasks):
+    user = get_user_by_email(body.email)
+    if user:
+        token = create_password_reset_token(user["id"], user["email"])
+        background_tasks.add_task(send_password_reset_email, user["username"], user["email"], token)
+    return {"ok": True}
+
+class ResetPasswordBody(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=6)
+
+@app.post("/api/reset-password")
+async def api_reset_password(body: ResetPasswordBody):
+    ok, msg = validate_password(body.new_password)
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    if not use_password_reset_token(body.token, hash_password(body.new_password)):
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    return {"ok": True}
 
 
 @app.post("/api/logout")
@@ -397,10 +508,25 @@ async def api_admin_verify(
     return {"ok": True}
 
 
+
+
+class ServerStateBody(BaseModel):
+    pin: str
+    stopped: bool
+
+@app.post("/api/admin/server-state")
+async def api_admin_server_state(body: ServerStateBody, user: dict = Depends(current_user)):
+    _verify_admin_pin(user, body.pin)
+    set_server_stopped(body.stopped)
+    return {"ok": True, "stopped": body.stopped}
+
+
 @app.post("/api/admin/stats")
 async def api_admin_stats(body: AdminAccessBody, user: dict = Depends(current_user)):
     _verify_admin_pin(user, body.pin)
-    return get_admin_stats()
+    stats = get_admin_stats()
+    stats["server_stopped"] = get_server_stopped()
+    return stats
 
 
 @app.post("/api/admin/reports")
@@ -543,6 +669,12 @@ async def v1_chat_stream(body: ChatRequest, user: dict = Depends(api_key_user)):
 
 @app.post("/api/chat")
 async def api_chat_stream(body: ChatRequest, user: dict = Depends(current_user)):
+    if get_server_stopped() and not _is_admin_user(user):
+        async def stopped_generator():
+            yield f"data: {json.dumps({'content': 'Server is stop'})}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(stopped_generator(), media_type="text/event-stream")
+
     user_text = last_user_message(body.messages)
     if _is_admin_user(user) and is_sensitive_admin_query(user_text):
         if not body.admin_pin or body.admin_pin.strip() != ADMIN_PIN:
@@ -563,7 +695,7 @@ async def api_chat_stream(body: ChatRequest, user: dict = Depends(current_user))
             if used_api:
                 yield "data: [DONE]\n\n"
                 return
-            yield f"data: {json.dumps({'error': 'Could not get a response. Check your API key and try again.'})}\n\n"
+            yield f"data: {json.dumps({'error': 'We are facing some errors check your connection or may be our server is closed due to update'})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

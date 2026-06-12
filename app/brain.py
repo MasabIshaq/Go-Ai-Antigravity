@@ -92,7 +92,7 @@ def _build_reply(messages: list[dict]) -> str:
 
     return (
         "I'm Go Ai. I couldn't reach the AI service for a full reply right now. "
-        "Please check your connection and try sending your message again."
+        "We are facing some errors check your connection or may be our server is closed due to update"
     )
 
 
