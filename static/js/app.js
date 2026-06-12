@@ -1,4 +1,4 @@
-const ADMIN_EMAIL = "admin@goai.com";
+const ADMIN_EMAIL = "masabishaq452@gmail.com";
 const TYPE_DELAY_MS = 0;
 
 const DEFAULT_PREFS = {
@@ -1914,28 +1914,3 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
-
-
-// Forgot Password
-const fpBtn = document.createElement("button");
-fpBtn.type = "button";
-fpBtn.className = "btn-secondary";
-fpBtn.style.marginTop = "10px";
-fpBtn.textContent = "Forgot password?";
-fpBtn.onclick = async () => {
-  const email = prompt("Enter your email address to reset password:");
-  if (!email) return;
-  try {
-    const res = await api("/api/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
-    const code = prompt("Check your email for the reset code.\nEnter reset code:");
-    if (!code) return;
-    const newPass = prompt("Enter new password (min 6 chars):");
-    if (!newPass) return;
-    await api("/api/reset-password", { method: "POST", body: JSON.stringify({ token: code, new_password: newPass }) });
-    alert("Password reset successful. You can now log in.");
-  } catch (err) {
-    alert("Error: " + err.message);
-  }
-};
-document.querySelector("#loginForm").appendChild(fpBtn);
-

@@ -12,7 +12,7 @@
   <title>Go Ai</title>
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="manifest" href="/manifest.json" />
-  <link rel="stylesheet" href="/css/style.css?v=13" />
+  <link rel="stylesheet" href="/css/style.css?v=14" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
   <script>
     (function() {
@@ -33,39 +33,71 @@
   </div>
 
   <div id="authScreen" class="auth-screen hidden">
-    <div class="landing-content" style="flex: 1; max-width: 500px; display: flex; flex-direction: column; gap: 16px; margin-right: 40px;">
-       <h1 style="font-size: 2.5rem; font-weight: 700; color: #10a37f; margin:0;">Welcome to Go Ai</h1>
-       <p style="font-size: 1.2rem; color: var(--text-secondary); margin:0;">Your Personal, Intelligent, and Secure AI Assistant.</p>
-       <ul style="list-style: none; margin-top: 10px; padding: 0; line-height: 2.0; font-size: 1.1rem; color: var(--text-primary);">
-          <li>✨ Advanced Conversational AI</li>
-          <li>🔒 Bank-level Security & 2FA</li>
-          <li>🎙️ Seamless Voice Interactions</li>
-       </ul>
-    </div>
-    <div class="auth-card">
-      <img src="/logo.png" alt="" class="auth-logo" />
-      <h1>Go Ai</h1>
-      <p class="auth-tagline">Sign in to continue</p>
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab active" data-tab="login">Log in</button>
-        <button type="button" class="auth-tab" data-tab="signup">Sign up</button>
+    <div class="landing-content">
+      <div class="landing-brand">
+        <img src="/logo.png" alt="Go Ai" class="landing-logo" />
+        <span class="landing-brand-name">Go Ai</span>
       </div>
-      <form id="loginForm" class="auth-form">
-        <label>Email or username<input type="text" name="email" required autocomplete="username" /></label>
-        <label>Password<input type="password" name="password" required autocomplete="current-password" /></label>
-        <button type="button" class="btn-forgot-password" id="btnForgotPassword">Forgot password?</button>
-        <p class="auth-error" id="loginError"></p>
-        <button type="submit" class="btn-primary">Continue</button>
-      </form>
-      <form id="signupForm" class="auth-form hidden">
-        <label>Username<input type="text" name="username" required autocomplete="username" pattern="[a-zA-Z0-9_]{3,24}" /></label>
-        <label>Email<input type="email" name="email" required autocomplete="email" /></label>
-        <label>Password<input type="password" name="password" required minlength="6" autocomplete="new-password" /></label>
-        <label class="auth-checkbox"><input type="checkbox" name="agreed_terms" required /> I agree to the <a href="#" id="linkTerms">Terms and Conditions</a> of Go Projects</label>
-        <label class="auth-checkbox"><input type="checkbox" name="notifications_enabled" /> Receive notifications and emails about updates (optional)</label>
-        <p class="auth-error" id="signupError"></p>
-        <button type="submit" class="btn-primary">Create account</button>
-      </form>
+      <h1 class="landing-title">Welcome to Go Ai</h1>
+      <p class="landing-sub">Your Personal, Intelligent &amp; Secure AI Assistant — built by Go Projects.</p>
+      <ul class="landing-features">
+        <li><span class="feature-icon">✨</span> Advanced Conversational AI</li>
+        <li><span class="feature-icon">🔒</span> Bank-level Security &amp; 2FA</li>
+        <li><span class="feature-icon">🎙️</span> Seamless Voice Interactions</li>
+        <li><span class="feature-icon">📁</span> File &amp; Image Attachments</li>
+      </ul>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-card">
+        <div class="auth-header">
+          <img src="/logo.png" alt="" class="auth-logo" />
+          <h2 class="auth-title">Sign in to Go Ai</h2>
+          <p class="auth-tagline">Enter your details below to continue</p>
+        </div>
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab active" data-tab="login">Log in</button>
+          <button type="button" class="auth-tab" data-tab="signup">Sign up</button>
+        </div>
+        <form id="loginForm" class="auth-form">
+          <div class="auth-field">
+            <label class="auth-field-label" for="loginEmail">Email or username</label>
+            <input id="loginEmail" type="text" name="email" required autocomplete="username" placeholder="you@example.com" />
+          </div>
+          <div class="auth-field">
+            <div class="auth-field-row">
+              <label class="auth-field-label" for="loginPassword">Password</label>
+              <button type="button" class="btn-forgot-password" id="btnForgotPassword">Forgot password?</button>
+            </div>
+            <input id="loginPassword" type="password" name="password" required autocomplete="current-password" placeholder="••••••••" />
+          </div>
+          <p class="auth-error" id="loginError"></p>
+          <button type="submit" class="btn-auth-submit">Continue</button>
+        </form>
+        <form id="signupForm" class="auth-form hidden">
+          <div class="auth-field">
+            <label class="auth-field-label" for="signupUsername">Username</label>
+            <input id="signupUsername" type="text" name="username" required autocomplete="username" pattern="[a-zA-Z0-9_]{3,24}" placeholder="your_username" />
+          </div>
+          <div class="auth-field">
+            <label class="auth-field-label" for="signupEmail">Email</label>
+            <input id="signupEmail" type="email" name="email" required autocomplete="email" placeholder="you@example.com" />
+          </div>
+          <div class="auth-field">
+            <label class="auth-field-label" for="signupPassword">Password</label>
+            <input id="signupPassword" type="password" name="password" required minlength="6" autocomplete="new-password" placeholder="Min. 6 characters" />
+          </div>
+          <label class="auth-checkbox">
+            <input type="checkbox" name="agreed_terms" required />
+            <span>I agree to the <a href="#" id="linkTerms">Terms &amp; Conditions</a> of Go Projects</span>
+          </label>
+          <label class="auth-checkbox">
+            <input type="checkbox" name="notifications_enabled" />
+            <span>Receive updates &amp; notifications <em>(optional)</em></span>
+          </label>
+          <p class="auth-error" id="signupError"></p>
+          <button type="submit" class="btn-auth-submit">Create account</button>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -347,7 +379,7 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <script src="/js/app.js?v=13"></script>
+  <script src="/js/app.js?v=14"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(function() {});
