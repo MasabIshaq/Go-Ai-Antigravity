@@ -1,4 +1,4 @@
-const ADMIN_EMAIL = "masabishaq452@gmail.com";
+const ADMIN_EMAIL = "goprojects452@gmail.com";
 const TYPE_DELAY_MS = 0;
 
 const DEFAULT_PREFS = {
