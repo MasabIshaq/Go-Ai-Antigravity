@@ -1034,31 +1034,37 @@ function renderAdminReports(reports) {
 }
 
 async function shareChatById(chatId) {
+  // Build the share URL - always works even if API fails
+  const origin = "https://go-ai-official.vercel.app";
+  let shareUrl = `${origin}/c/${chatId}`;
+
   try {
     const res = await api(`/api/chats/${chatId}/share`, { method: "POST" });
-    const data = await res.json();
-    const origin = window.location.origin;
-    const shareUrl = data.chat_url?.startsWith("http")
-        ? data.chat_url
-        : `${origin}${data.chat_url || `/c/${chatId}`}`;
-    
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Go Ai Chat",
-          url: shareUrl
-        });
-        return;
-      } catch (err) {
-        // Fallback to overlay
+    if (res.ok) {
+      const data = await res.json();
+      if (data.chat_url) {
+        shareUrl = data.chat_url.startsWith("http")
+          ? data.chat_url
+          : `${origin}${data.chat_url}`;
       }
     }
-
-    els.shareLinkInput.value = shareUrl;
-    els.shareOverlay.classList.remove("hidden");
   } catch (err) {
-    showToast(err.message);
+    // Use the fallback URL silently
   }
+
+  // Use native share sheet on mobile (Android/iOS)
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "Go Ai Chat", url: shareUrl });
+      return;
+    } catch (err) {
+      if (err.name === "AbortError") return; // User dismissed, do nothing
+    }
+  }
+
+  // Desktop fallback: show overlay with copy button
+  els.shareLinkInput.value = shareUrl;
+  els.shareOverlay.classList.remove("hidden");
 }
 
 async function loadApiKeys() {
