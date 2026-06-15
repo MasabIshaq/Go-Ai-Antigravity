@@ -17,6 +17,8 @@ from app.config import GMAIL_USER, GMAIL_APP_PASSWORD, NOTIFICATION_EMAIL, APP_T
 logger = logging.getLogger(__name__)
 
 
+import email.utils
+
 def _send_email_sync(to_email: str, subject: str, html_content: str) -> bool:
     """Blocking SMTP send — called via run_in_executor so it won't block async."""
     if not GMAIL_USER or not GMAIL_APP_PASSWORD:
@@ -27,6 +29,10 @@ def _send_email_sync(to_email: str, subject: str, html_content: str) -> bool:
     msg["From"] = f"{APP_TITLE} <{GMAIL_USER}>"
     msg["To"] = to_email
     msg["Subject"] = subject
+    msg["Message-ID"] = email.utils.make_msgid(domain="gmail.com")
+    msg["Date"] = email.utils.formatdate(localtime=False)
+    msg["Reply-To"] = f"No Reply <{GMAIL_USER}>"
+    
     msg.attach(MIMEText("Please enable HTML to view this email.", "plain"))
     msg.attach(MIMEText(html_content, "html"))
 
@@ -96,7 +102,7 @@ def _otp_box(code: str) -> str:
 
 async def send_otp_email(username: str, email: str, otp_code: str, context: str = "Sign Up") -> None:
     """OTP for signup verification or 2FA login."""
-    subject = f"Your {APP_TITLE} verification code: {otp_code}"
+    subject = f"[Action Required] Your {APP_TITLE} verification code: {otp_code}"
     html = _wrap(
         _header("Verification Required", context)
         + f"""

@@ -1526,7 +1526,43 @@ html, body {
   color: #fff;
 }
 
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
 
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.btn-toggle-password {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.btn-toggle-password:hover {
+  color: var(--text-primary);
+}
+
+@keyframes loadingLogo {
+  0% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(0.85) rotate(180deg); opacity: 0.6; }
+  100% { transform: scale(1) rotate(360deg); opacity: 1; }
+}
+
+.turn-avatar-ai.generating img {
+  animation: loadingLogo 2s ease-in-out infinite;
+}
 @media (max-width: 768px) {
   .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 200;
