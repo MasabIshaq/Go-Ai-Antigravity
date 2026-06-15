@@ -218,3 +218,24 @@ async def notify_admin_new_signup(username: str, email: str) -> None:
         + _footer()
     )
     await send_email(NOTIFICATION_EMAIL, subject, html)
+
+
+async def send_update_email(username: str, email: str, subject: str, message: str) -> None:
+    """Send a news/update email to a user."""
+    html = _wrap(
+        _header("App Update", APP_TITLE)
+        + f"""
+        <div style="padding:28px;background:#fff;">
+          <p style="color:#333;line-height:1.6;margin:0 0 8px;">
+            Hi <strong>{username}</strong>,
+          </p>
+          <p style="color:#555;line-height:1.6;margin:0 0 16px;">
+            {message.replace(chr(10), "<br>")}
+          </p>
+          <p style="color:#999;font-size:12px;margin:20px 0 0;">
+            You are receiving this because you enabled notifications in your settings.
+          </p>
+        </div>"""
+        + _footer()
+    )
+    await send_email(email, subject, html)

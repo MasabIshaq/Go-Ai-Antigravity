@@ -763,3 +763,9 @@ def verify_user_otp(user_id: str, otp_code: str) -> bool:
 def update_user_settings(user_id: str, two_fa_enabled: bool, notifications_enabled: bool) -> None:
     with get_db() as conn:
         conn.execute("UPDATE users SET two_fa_enabled=?, notifications_enabled=? WHERE id=?", (1 if two_fa_enabled else 0, 1 if notifications_enabled else 0, user_id))
+
+
+def get_notification_users() -> list[dict]:
+    with get_db() as conn:
+        rows = conn.execute("SELECT id, username, email FROM users WHERE notifications_enabled=1").fetchall()
+    return [{"id": r["id"], "username": r["username"], "email": r["email"]} for r in rows]

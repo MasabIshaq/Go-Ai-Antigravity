@@ -14,7 +14,7 @@ from pydantic import BaseModel, EmailStr, Field
 from app.admin_guard import is_sensitive_admin_query, last_user_message
 from app.api_keys import create_api_key, list_api_keys, revoke_api_key, user_from_api_key
 from app.auth import login, logout, signup, user_from_token, validate_password, hash_password
-from app.email_service import notify_admin_new_signup, send_welcome_email, send_password_reset_email, send_login_alert_email, send_otp_email
+from app.email_service import notify_admin_new_signup, send_welcome_email, send_password_reset_email, send_login_alert_email, send_otp_email, send_update_email
 from app.config import (
     ADMIN_EMAIL,
     ADMIN_PIN,
@@ -58,6 +58,7 @@ from app.database import (
     set_user_otp,
     verify_user_otp,
     update_user_settings,
+    get_notification_users,
 )
 from app.openrouter import ZAIError, stream_chat
 
@@ -302,17 +303,17 @@ async def api_login(body: LoginBody, response: Response, background_tasks: Backg
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except sqlite3.Error as exc:
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
-        
+
     user_db = get_user_by_id(result["user"]["id"])
+
+    # Block unverified accounts — they must complete OTP from signup first
     if not user_db["is_verified"]:
-        import secrets
-        from datetime import datetime, timedelta, timezone
-        otp = str(secrets.randbelow(1000000)).zfill(6)
-        expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
-        set_user_otp(result["user"]["id"], otp, expires)
-        background_tasks.add_task(send_otp_email, result["user"]["username"], result["user"]["email"], otp, "Sign Up")
-        return {"requires_verification": True, "user_id": result["user"]["id"], "email": result["user"]["email"]}
-        
+        raise HTTPException(
+            status_code=403,
+            detail="Account not verified. Please check your email for the verification code sent during signup."
+        )
+
+    # OTP is ONLY required when the user explicitly enables 2FA
     if user_db["two_fa_enabled"]:
         import secrets
         from datetime import datetime, timedelta, timezone
@@ -322,8 +323,8 @@ async def api_login(body: LoginBody, response: Response, background_tasks: Backg
         background_tasks.add_task(send_otp_email, result["user"]["username"], result["user"]["email"], otp, "Login 2FA")
         return {"requires_2fa": True, "user_id": result["user"]["id"], "email": result["user"]["email"]}
 
+    # Normal login — no OTP needed
     _set_session(response, result["token"], request)
-    background_tasks.add_task(send_login_alert_email, result["user"]["username"], result["user"]["email"])
     return {"user": result["user"]}
 
 
@@ -364,7 +365,7 @@ class SettingsBody(BaseModel):
 async def api_settings(body: SettingsBody, user: dict = Depends(current_user)):
     update_user_settings(user["id"], body.two_fa_enabled, body.notifications_enabled)
     return {"ok": True}
-    
+
 @app.get("/api/settings")
 async def api_get_settings(user: dict = Depends(current_user)):
     user_db = get_user_by_id(user["id"])
@@ -372,6 +373,29 @@ async def api_get_settings(user: dict = Depends(current_user)):
         "two_fa_enabled": bool(user_db["two_fa_enabled"]),
         "notifications_enabled": bool(user_db["notifications_enabled"])
     }
+
+
+class SendUpdateBody(BaseModel):
+    pin: str
+    subject: str = Field(..., min_length=3, max_length=200)
+    message: str = Field(..., min_length=10)
+
+@app.post("/api/admin/send-update")
+async def api_send_update(body: SendUpdateBody, background_tasks: BackgroundTasks, user: dict = Depends(current_user)):
+    """Admin endpoint: send a news/update email to all users with notifications enabled."""
+    _verify_admin_pin(user, body.pin)
+    recipients = get_notification_users()
+    if not recipients:
+        return {"ok": True, "sent": 0}
+    for recipient in recipients:
+        background_tasks.add_task(
+            send_update_email,
+            recipient["username"],
+            recipient["email"],
+            body.subject,
+            body.message,
+        )
+    return {"ok": True, "sent": len(recipients)}
 
 
 
