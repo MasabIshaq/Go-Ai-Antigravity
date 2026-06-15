@@ -1,0 +1,29 @@
+{
+  "name": "go-ai---antigravity",
+  "version": "1.0.0",
+  "description": "A ChatGPT-style chatbot powered by [OpenRouter](https://openrouter.ai/), built with Python (FastAPI) and a streaming web UI.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MasabIshaq/Go-Ai-Antigravity.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/MasabIshaq/Go-Ai-Antigravity/issues"
+  },
+  "homepage": "https://github.com/MasabIshaq/Go-Ai-Antigravity#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  }
+}

@@ -1678,15 +1678,19 @@ function setupAuth() {
 
   // Activities / Notifications — only open if there are activities
   els.btnNotifications?.addEventListener("click", async () => {
+    els.activitiesOverlay.classList.remove("hidden");
+    els.activitiesList.innerHTML = "<p style='color:var(--text-muted);text-align:center;padding:20px 0;'>Loading...</p>";
     try {
       const res = await fetch("/api/activities", { credentials: "include" });
-      if (!res.ok) { showToast("Could not load activity"); return; }
-      const data = await res.json();
-      if (!data.activities || data.activities.length === 0) {
-        showToast("No recent activity");
+      if (!res.ok) {
+        els.activitiesList.innerHTML = "<p style='color:#f87171;text-align:center;padding:20px 0;'>Could not load activities.</p>";
         return;
       }
-      els.activitiesOverlay.classList.remove("hidden");
+      const data = await res.json();
+      if (!data.activities || data.activities.length === 0) {
+        els.activitiesList.innerHTML = "<p style='color:var(--text-muted);text-align:center;padding:20px 0;'>No recent activity.</p>";
+        return;
+      }
       els.activitiesList.innerHTML = data.activities.map(a =>
         `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
           <strong style="color:var(--text-primary);display:block;margin-bottom:4px;">${a.action}</strong>
@@ -1694,7 +1698,7 @@ function setupAuth() {
         </div>`
       ).join("");
     } catch (err) {
-      showToast("Could not load activity");
+      els.activitiesList.innerHTML = "<p style='color:#f87171;text-align:center;padding:20px 0;'>Could not load activities.</p>";
     }
   });
 

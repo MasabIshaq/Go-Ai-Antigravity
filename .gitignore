@@ -5,3 +5,8 @@ __pycache__/
 data/
 *.db
 .DS_Store
+node_modules/
+dist/
+build/
+.idea/
+*.iml
