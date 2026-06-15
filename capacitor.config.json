@@ -5,5 +5,11 @@
   "server": {
     "url": "https://go-ai-official.vercel.app",
     "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "launchAutoHide": true
+    }
   }
 }

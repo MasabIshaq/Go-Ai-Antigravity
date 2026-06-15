@@ -1008,6 +1008,8 @@ html, body {
 
 .turn-user .bubble {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background: transparent !important;
   color: var(--text-primary) !important;
 }
@@ -1020,8 +1022,9 @@ html, body {
 
 .bubble-user-text {
   white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .turn-content {

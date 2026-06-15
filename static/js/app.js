@@ -1038,10 +1038,23 @@ async function shareChatById(chatId) {
     const res = await api(`/api/chats/${chatId}/share`, { method: "POST" });
     const data = await res.json();
     const origin = window.location.origin;
-    els.shareLinkInput.value =
-      data.chat_url?.startsWith("http")
+    const shareUrl = data.chat_url?.startsWith("http")
         ? data.chat_url
         : `${origin}${data.chat_url || `/c/${chatId}`}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Go Ai Chat",
+          url: shareUrl
+        });
+        return;
+      } catch (err) {
+        // Fallback to overlay
+      }
+    }
+
+    els.shareLinkInput.value = shareUrl;
     els.shareOverlay.classList.remove("hidden");
   } catch (err) {
     showToast(err.message);
