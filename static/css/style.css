@@ -907,6 +907,8 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .turn {
@@ -915,6 +917,8 @@ html, body {
   gap: 16px;
   max-width: 100%;
   width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .turn-user {
@@ -977,6 +981,8 @@ html, body {
   flex: 1;
   min-width: 0;
   max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .turn-user .turn-col {
@@ -1000,10 +1006,13 @@ html, body {
   font-size: 16px;
   line-height: 1.6;
   word-break: break-word;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   position: relative;
   border: none !important;
   box-shadow: none !important;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .turn-user .bubble {
@@ -1016,6 +1025,8 @@ html, body {
 
 .turn-assistant .bubble {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   background: transparent !important;
   color: var(--text-primary) !important;
 }
@@ -1090,10 +1101,12 @@ html, body {
 .turn-content pre {
   position: relative; margin: 10px 0; padding: 12px;
   border-radius: 8px; background: var(--bg-input); overflow-x: auto;
+  max-width: 100%; box-sizing: border-box;
 }
 .turn-content code { font-family: ui-monospace, monospace; font-size: 0.875em; }
 .turn-content :not(pre) > code {
   padding: 2px 6px; border-radius: 4px; background: var(--bg-hover);
+  word-break: break-word; white-space: pre-wrap;
 }
 .turn-content pre code { padding: 0; background: none; }
 .copy-btn {
@@ -1161,8 +1174,11 @@ html, body {
 }
 .msg-attachment { display: block; margin-bottom: 8px; }
 .msg-attachment img {
-  max-width: 220px; max-height: 180px; border-radius: 10px;
-  border: 1px solid var(--border); object-fit: cover;
+  max-width: min(220px, 100%);
+  max-height: 180px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  object-fit: cover;
 }
 .msg-attachment.file {
   display: inline-block; padding: 4px 10px; margin-bottom: 6px;
@@ -1634,6 +1650,7 @@ html, body {
   /* Wider turns on mobile */
   .turn-col {
     max-width: 100%;
+    min-width: 0;
   }
 
   .bubble {

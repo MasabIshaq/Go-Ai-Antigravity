@@ -173,7 +173,11 @@ function isSensitiveAdminQuery(text) {
 
 function configureMarkdown() {
   if (typeof marked === "undefined") return;
-  const opts = { breaks: true, gfm: true };
+  const renderer = new marked.Renderer();
+  renderer.link = function(href, title, text) {
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer"${title ? ` title="${title}"` : ''}>${text}</a>`;
+  };
+  const opts = { breaks: true, gfm: true, renderer: renderer };
   if (typeof marked.use === "function") marked.use(opts);
   else if (typeof marked.setOptions === "function") marked.setOptions(opts);
 }

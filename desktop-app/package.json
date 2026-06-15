@@ -1,0 +1,50 @@
+{
+  "name": "go-ai",
+  "version": "1.0.0",
+  "description": "Go Ai - Your intelligent AI assistant",
+  "main": "main.js",
+  "author": "Go Projects",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win nsis",
+    "build:linux": "electron-builder --linux deb",
+    "build:all": "electron-builder --win nsis --linux deb"
+  },
+  "build": {
+    "appId": "com.goprojects.goai",
+    "productName": "Go Ai",
+    "directories": {
+      "output": "dist"
+    },
+    "files": ["main.js", "icon.png"],
+    "icon": "icon.png",
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "installerIcon": "icon.png",
+      "uninstallerIcon": "icon.png",
+      "shortcutName": "Go Ai",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": [{ "target": "deb", "arch": ["x64"] }],
+      "icon": "icon.png",
+      "category": "Utility",
+      "description": "Go Ai - Your intelligent AI assistant"
+    },
+    "deb": {
+      "depends": ["libgtk-3-0", "libnotify4", "libnss3", "libxss1", "libxtst6", "xdg-utils", "libatspi2.0-0"]
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}
