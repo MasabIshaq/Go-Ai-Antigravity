@@ -149,6 +149,10 @@ const els = {
   resetPasswordCancel: $("#resetPasswordCancel"),
   resetPasswordConfirm: $("#resetPasswordConfirm"),
   btnForgotPassword: $("#btnForgotPassword"),
+  btnNotifications: $("#btnNotifications"),
+  activitiesOverlay: $("#activitiesOverlay"),
+  activitiesList: $("#activitiesList"),
+  activitiesClose: $("#activitiesClose"),
 };
 
 const SENSITIVE_PATTERNS = [
@@ -269,6 +273,16 @@ function showToast(msg) {
   els.toast.classList.remove("hidden");
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => els.toast.classList.add("hidden"), 2200);
+}
+
+function showGlobalLoader() {
+  const loader = document.getElementById("globalLoader");
+  if (loader) loader.classList.remove("hidden");
+}
+
+function hideGlobalLoader() {
+  const loader = document.getElementById("globalLoader");
+  if (loader) loader.classList.add("hidden");
 }
 
 async function api(path, options = {}) {
@@ -592,17 +606,21 @@ async function createChat(isTemp = false) {
 }
 
 async function deleteChatById(chatId) {
-  if (state.isStreaming) return;
   const ok = await showConfirmDialog("Delete chat", "Are you sure you want to delete this chat?");
   if (!ok) return;
-  await api(`/api/chats/${chatId}`, { method: "DELETE" });
-  if (state.currentChatId === chatId) {
-    state.currentChatId = null;
-    state.messages = [];
-    await refreshChats();
-    await createChat(false);
-  } else {
-    await refreshChats();
+  showGlobalLoader();
+  try {
+    await api(`/api/chats/${chatId}`, { method: "DELETE" });
+    if (state.currentChatId === chatId) {
+      state.currentChatId = null;
+      state.messages = [];
+      await refreshChats();
+      await createChat(false);
+    } else {
+      await refreshChats();
+    }
+  } finally {
+    hideGlobalLoader();
   }
 }
 
@@ -614,13 +632,18 @@ async function renameChatById(chatId, currentTitle, isTemp) {
     currentTitle || "New chat"
   );
   if (!clean) return;
-  await api(`/api/chats/${chatId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ title: clean }),
-  });
-  await refreshChats();
-  if (state.currentChatId === chatId) {
-    setPageTitle(clean, isTemp);
+  showGlobalLoader();
+  try {
+    await api(`/api/chats/${chatId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title: clean }),
+    });
+    await refreshChats();
+    if (state.currentChatId === chatId) {
+      setPageTitle(clean, isTemp);
+    }
+  } finally {
+    hideGlobalLoader();
   }
 }
 
@@ -787,8 +810,9 @@ async function streamResponse(adminPin = null) {
       contentEl = assistantEl.querySelector(".turn-content");
     }
     let emsg = err.message || "Unknown error";
-    if (emsg.includes("fetch") || emsg.includes("Failed") || emsg.includes("network") || emsg.includes("ZAIError")) {
-      emsg = "We are facing some errors check your connection or may be our server is closed due to update";
+    // Only show network/connection error for actual network failures (TypeError = fetch failed)
+    if (err instanceof TypeError || emsg.toLowerCase().includes("failed to fetch") || emsg.toLowerCase().includes("networkerror")) {
+      emsg = "Connection lost. Please check your network and try again.";
     }
     state.messages[idx].content = emsg;
     contentEl.innerHTML = renderMarkdown(state.messages[idx].content);
@@ -820,13 +844,13 @@ async function streamResponse(adminPin = null) {
   
   if (state.goTalkActive) {
     els.goTalkStatus.textContent = "AI is speaking...";
+    // Restart listening quickly after speech ends
     setTimeout(() => {
       if (state.goTalkActive && state.recognition && !state.isListening && !state.isStreaming) {
-        try {
-          state.recognition.start();
-        } catch (e) {}
+        els.goTalkStatus.textContent = "Listening...";
+        try { state.recognition.start(); } catch (e) {}
       }
-    }, 1500); // Small pause before listening again
+    }, 400);
   }
   
   if (!state.currentIsTemp && state.currentChatId) {
@@ -1247,7 +1271,7 @@ function setupSpeechRecognition() {
     return;
   }
   state.recognition = new SR();
-  state.recognition.continuous = false;
+  state.recognition.continuous = true;
   state.recognition.interimResults = true;
   if (navigator.language) {
     state.recognition.lang = navigator.language;
@@ -1279,9 +1303,16 @@ function setupSpeechRecognition() {
       els.goTalkTranscript.textContent = transcript;
     }
     if (e.results[e.results.length - 1].isFinal && transcript.trim()) {
-      state.recognition.stop();
-      if (state.goTalkActive) els.goTalkStatus.textContent = "Processing...";
-      sendMessage(transcript.trim());
+      if (state.goTalkActive) {
+        // In Go Talk mode: stop, send immediately, don't wait
+        try { state.recognition.stop(); } catch(e) {}
+        els.goTalkStatus.textContent = "Processing...";
+        els.promptInput.value = "";
+        sendMessage(transcript.trim());
+      } else {
+        state.recognition.stop();
+        sendMessage(transcript.trim());
+      }
     }
   };
 
@@ -1503,6 +1534,7 @@ function setupAuth() {
     e.preventDefault();
     els.loginError.textContent = "";
     const fd = new FormData(els.loginForm);
+    showGlobalLoader();
     try {
       const res = await fetch("/api/login", {
         method: "POST",
@@ -1513,6 +1545,7 @@ function setupAuth() {
       if (!res.ok) throw new Error(data.detail || "Login failed");
       
       if (data.requires_verification || data.requires_2fa) {
+        hideGlobalLoader();
         state.pendingUserId = data.user_id;
         els.otpOverlay.classList.remove("hidden");
         els.otpInput.value = "";
@@ -1523,6 +1556,8 @@ function setupAuth() {
       await afterAuthSuccess();
     } catch (err) {
       els.loginError.textContent = err.message;
+    } finally {
+      hideGlobalLoader();
     }
   });
 
@@ -1530,6 +1565,7 @@ function setupAuth() {
     e.preventDefault();
     els.signupError.textContent = "";
     const fd = new FormData(els.signupForm);
+    showGlobalLoader();
     try {
       const res = await fetch("/api/signup", {
         method: "POST",
@@ -1546,6 +1582,7 @@ function setupAuth() {
       if (!res.ok) throw new Error(data.detail || "Signup failed");
       
       if (data.requires_verification) {
+        hideGlobalLoader();
         state.pendingUserId = data.user_id;
         els.otpOverlay.classList.remove("hidden");
         els.otpInput.value = "";
@@ -1556,6 +1593,8 @@ function setupAuth() {
       await afterAuthSuccess();
     } catch (err) {
       els.signupError.textContent = err.message;
+    } finally {
+      hideGlobalLoader();
     }
   });
 
@@ -1564,6 +1603,7 @@ function setupAuth() {
     els.otpError.textContent = "";
     const code = els.otpInput.value.trim();
     if (!code) return;
+    showGlobalLoader();
     try {
       const res = await fetch("/api/verify-otp", {
         method: "POST",
@@ -1576,6 +1616,8 @@ function setupAuth() {
       await afterAuthSuccess();
     } catch (err) {
       els.otpError.textContent = err.message;
+    } finally {
+      hideGlobalLoader();
     }
   });
 
@@ -1589,6 +1631,7 @@ function setupAuth() {
     els.forgotPasswordError.textContent = "";
     const email = els.forgotPasswordEmail.value.trim();
     if (!email) return;
+    showGlobalLoader();
     try {
       await api("/api/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
       els.forgotPasswordOverlay.classList.add("hidden");
@@ -1596,6 +1639,8 @@ function setupAuth() {
       els.resetPasswordError.textContent = "";
     } catch (err) {
       els.forgotPasswordError.textContent = err.message;
+    } finally {
+      hideGlobalLoader();
     }
   });
 
@@ -1605,13 +1650,56 @@ function setupAuth() {
     const token = els.resetPasswordCode.value.trim();
     const new_password = els.resetPasswordNew.value;
     if (!token || !new_password) return;
+    showGlobalLoader();
     try {
       await api("/api/reset-password", { method: "POST", body: JSON.stringify({ token, new_password }) });
       els.resetPasswordOverlay.classList.add("hidden");
       showToast("Password updated. Please log in.");
     } catch (err) {
       els.resetPasswordError.textContent = err.message;
+    } finally {
+      hideGlobalLoader();
     }
+  });
+
+  // Password visibility toggle
+  document.querySelectorAll(".btn-toggle-password").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const input = btn.previousElementSibling;
+      if (input.type === "password") {
+        input.type = "text";
+        btn.style.color = "var(--text-primary)";
+      } else {
+        input.type = "password";
+        btn.style.color = "var(--text-muted)";
+      }
+    });
+  });
+
+  // Activities / Notifications — only open if there are activities
+  els.btnNotifications?.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/activities", { credentials: "include" });
+      if (!res.ok) { showToast("Could not load activity"); return; }
+      const data = await res.json();
+      if (!data.activities || data.activities.length === 0) {
+        showToast("No recent activity");
+        return;
+      }
+      els.activitiesOverlay.classList.remove("hidden");
+      els.activitiesList.innerHTML = data.activities.map(a =>
+        `<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <strong style="color:var(--text-primary);display:block;margin-bottom:4px;">${a.action}</strong>
+          <small style="color:var(--text-muted);">${new Date(a.created_at).toLocaleString()}</small>
+        </div>`
+      ).join("");
+    } catch (err) {
+      showToast("Could not load activity");
+    }
+  });
+
+  els.activitiesClose?.addEventListener("click", () => {
+    els.activitiesOverlay.classList.add("hidden");
   });
 }
 
@@ -1852,10 +1940,13 @@ function setupChat() {
 
   els.btnLogout.addEventListener("click", async () => {
     els.profileMenu.classList.add("hidden");
+    showGlobalLoader();
     try {
       await fetch("/api/logout", { method: "POST", credentials: "include" });
     } catch {
       /* ignore network errors — still log out locally */
+    } finally {
+      hideGlobalLoader();
     }
     state.user = null;
     state.adminUnlocked = false;

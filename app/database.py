@@ -85,6 +85,12 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 used INTEGER NOT NULL DEFAULT 0
             )""",
+            """CREATE TABLE IF NOT EXISTS user_activities (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )""",
         ]
         for stmt in statements:
             conn.execute(stmt)
@@ -769,3 +775,12 @@ def get_notification_users() -> list[dict]:
     with get_db() as conn:
         rows = conn.execute("SELECT id, username, email FROM users WHERE notifications_enabled=1").fetchall()
     return [{"id": r["id"], "username": r["username"], "email": r["email"]} for r in rows]
+
+def log_activity(user_id: str, action: str) -> None:
+    with get_db() as conn:
+        conn.execute("INSERT INTO user_activities(id, user_id, action, created_at) VALUES(?,?,?,?)", (str(uuid.uuid4()), user_id, action, _now()))
+
+def get_user_activities(user_id: str) -> list[dict]:
+    with get_db() as conn:
+        rows = conn.execute("SELECT action, created_at FROM user_activities WHERE user_id=? ORDER BY created_at DESC LIMIT 50", (user_id,)).fetchall()
+    return [{"action": r["action"], "created_at": r["created_at"]} for r in rows]

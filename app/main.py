@@ -308,10 +308,13 @@ async def api_login(body: LoginBody, response: Response, background_tasks: Backg
 
     # Block unverified accounts — they must complete OTP from signup first
     if not user_db["is_verified"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Account not verified. Please check your email for the verification code sent during signup."
-        )
+        import secrets
+        from datetime import datetime, timedelta, timezone
+        otp = str(secrets.randbelow(1000000)).zfill(6)
+        expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        set_user_otp(result["user"]["id"], otp, expires)
+        background_tasks.add_task(send_otp_email, result["user"]["username"], result["user"]["email"], otp, "Sign Up")
+        return {"requires_verification": True, "user_id": result["user"]["id"], "email": result["user"]["email"]}
 
     # OTP is ONLY required when the user explicitly enables 2FA
     if user_db["two_fa_enabled"]:
@@ -325,6 +328,7 @@ async def api_login(body: LoginBody, response: Response, background_tasks: Backg
 
     # Normal login — no OTP needed
     _set_session(response, result["token"], request)
+    log_activity(result["user"]["id"], "Logged in")
     return {"user": result["user"]}
 
 
@@ -349,9 +353,11 @@ async def api_verify_otp(body: VerifyOtpBody, response: Response, background_tas
     
     _set_session(response, token, request)
     if was_unverified:
+        log_activity(user_db["id"], "Account verified")
         background_tasks.add_task(notify_admin_new_signup, user_dict["username"], user_dict["email"])
         background_tasks.add_task(send_welcome_email, user_dict["username"], user_dict["email"])
     else:
+        log_activity(user_db["id"], "Logged in with 2FA")
         background_tasks.add_task(send_login_alert_email, user_dict["username"], user_dict["email"])
         
     return {"user": user_dict}
@@ -361,10 +367,22 @@ class SettingsBody(BaseModel):
     two_fa_enabled: bool
     notifications_enabled: bool
 
+from app.database import get_user_activities, log_activity
+
 @app.post("/api/settings")
 async def api_settings(body: SettingsBody, user: dict = Depends(current_user)):
+    user_db = get_user_by_id(user["id"])
+    if bool(user_db["two_fa_enabled"]) != body.two_fa_enabled:
+        log_activity(user["id"], "Enabled Two-Factor Authentication" if body.two_fa_enabled else "Disabled Two-Factor Authentication")
+    if bool(user_db["notifications_enabled"]) != body.notifications_enabled:
+        log_activity(user["id"], "Enabled News & Updates" if body.notifications_enabled else "Disabled News & Updates")
+        
     update_user_settings(user["id"], body.two_fa_enabled, body.notifications_enabled)
     return {"ok": True}
+
+@app.get("/api/activities")
+async def api_get_activities(user: dict = Depends(current_user)):
+    return {"activities": get_user_activities(user["id"])}
 
 @app.get("/api/settings")
 async def api_get_settings(user: dict = Depends(current_user)):
@@ -419,8 +437,12 @@ async def api_reset_password(body: ResetPasswordBody):
     ok, msg = validate_password(body.new_password)
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
-    if not use_password_reset_token(body.token, hash_password(body.new_password)):
+    
+    token_data = get_password_reset_token(body.token)
+    if not token_data or not use_password_reset_token(body.token, hash_password(body.new_password)):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        
+    log_activity(token_data["user_id"], "Reset password")
     return {"ok": True}
 
 
