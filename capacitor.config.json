@@ -1,5 +1,9 @@
 {
   "appId": "com.goprojects.goai",
   "appName": "Go Ai",
-  "webDir": "static"
+  "webDir": "static",
+  "server": {
+    "url": "https://go-ai-official.vercel.app",
+    "cleartext": true
+  }
 }
