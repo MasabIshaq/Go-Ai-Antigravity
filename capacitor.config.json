@@ -4,12 +4,16 @@
   "webDir": "static",
   "server": {
     "url": "https://go-ai-official.vercel.app",
-    "cleartext": true
+    "cleartext": true,
+    "errorPath": "error.html"
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 0,
-      "launchAutoHide": true
+      "launchShowDuration": 3000,
+      "launchAutoHide": true,
+      "backgroundColor": "#212121",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
     }
   }
 }

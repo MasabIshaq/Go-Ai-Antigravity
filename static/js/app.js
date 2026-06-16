@@ -387,7 +387,7 @@ function attachmentHtml(attachments = []) {
   return attachments
     .map((a) => {
       if ((a.type || "").startsWith("image/")) {
-        return `<a class="msg-attachment" href="${a.url}" target="_blank" rel="noopener"><img src="${a.url}" alt="${a.name || "image"}" /></a>`;
+        return `<a class="msg-attachment" href="${a.url}" target="_blank" rel="noopener"><img src="${a.url}" alt="${a.name || "image"}" onload="scrollToBottom()" /></a>`;
       }
       return `<a class="msg-attachment file" href="${a.url}" target="_blank" rel="noopener">${a.name || "file"}</a>`;
     })
@@ -2032,3 +2032,7 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
+ 
+ d o c u m e n t . a d d E v e n t L i s t e n e r ( ' c l i c k ' ,   f u n c t i o n ( e )   {   c o n s t   t a r g e t   =   e . t a r g e t . c l o s e s t ( ' a ' ) ;   i f   ( t a r g e t   & &   t a r g e t . h r e f   & &   ! t a r g e t . h r e f . s t a r t s W i t h ( w i n d o w . l o c a t i o n . o r i g i n )   & &   ! t a r g e t . h r e f . s t a r t s W i t h ( ' j a v a s c r i p t : ' ) )   {   t a r g e t . s e t A t t r i b u t e ( ' t a r g e t ' ,   ' _ b l a n k ' ) ;   t a r g e t . s e t A t t r i b u t e ( ' r e l ' ,   ' n o o p e n e r   n o r e f e r r e r ' ) ;   }   } ) ;  
+ 

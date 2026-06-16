@@ -7,9 +7,9 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win nsis",
+    "build:win": "electron-builder --win portable",
     "build:linux": "electron-builder --linux deb",
-    "build:all": "electron-builder --win nsis --linux deb"
+    "build:all": "electron-builder --win portable --linux deb"
   },
   "build": {
     "appId": "com.goprojects.goai",
@@ -20,7 +20,7 @@
     "files": ["main.js", "icon.png"],
     "icon": "icon.png",
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [{ "target": "portable", "arch": ["x64"] }],
       "icon": "icon.png"
     },
     "nsis": {

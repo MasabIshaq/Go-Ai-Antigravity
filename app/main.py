@@ -156,8 +156,8 @@ def _set_session(response: Response, token: str, request: Request = None) -> Non
         value=token,
         httponly=True,
         max_age=30 * 24 * 3600,
-        samesite="lax",
-        secure=_cookie_secure(request),
+        samesite="none",
+        secure=True,
         path="/",
     )
 
@@ -547,8 +547,8 @@ async def api_admin_verify(
         value="1",
         httponly=True,
         max_age=8 * 3600,
-        samesite="lax",
-        secure=_cookie_secure(request),
+        samesite="none",
+        secure=True,
         path="/",
     )
     return {"ok": True}
