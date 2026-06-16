@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "description": "Go Ai - Your intelligent AI assistant",
   "main": "main.js",
-  "author": "Go Projects",
+  "author": {
+    "name": "Go Projects",
+    "email": "goprojects452@gmail.com"
+  },
+  "homepage": "https://go-ai-official.vercel.app",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
