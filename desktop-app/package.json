@@ -32,8 +32,6 @@
       "oneClick": true,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false,
-      "installerIcon": "icon.png",
-      "uninstallerIcon": "icon.png",
       "shortcutName": "Go Ai",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
