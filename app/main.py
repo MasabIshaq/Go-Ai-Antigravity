@@ -150,13 +150,17 @@ def _cookie_secure(request: Request = None) -> bool:
     return SITE_URL.startswith("https")
 
 
+def _cookie_samesite(request: Request = None) -> str:
+    return "none" if _cookie_secure(request) else "lax"
+
+
 def _set_session(response: Response, token: str, request: Request = None) -> None:
     response.set_cookie(
         key="goai_session",
         value=token,
         httponly=True,
         max_age=30 * 24 * 3600,
-        samesite="lax",
+        samesite=_cookie_samesite(request),
         secure=_cookie_secure(request),
         path="/",
     )
@@ -547,7 +551,7 @@ async def api_admin_verify(
         value="1",
         httponly=True,
         max_age=8 * 3600,
-        samesite="lax",
+        samesite=_cookie_samesite(request),
         secure=_cookie_secure(request),
         path="/",
     )
