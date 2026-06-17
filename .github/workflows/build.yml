@@ -21,7 +21,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./desktop-app
-        run: npm ci
+        run: npm install
 
       - name: Build Windows
         working-directory: ./desktop-app
@@ -50,7 +50,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./desktop-app
-        run: npm ci
+        run: npm install
 
       - name: Build Linux
         working-directory: ./desktop-app

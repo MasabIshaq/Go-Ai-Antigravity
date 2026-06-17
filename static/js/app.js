@@ -2034,3 +2034,18 @@ if (document.readyState === "loading") {
 }
 
 document.addEventListener('click', function(e) { const target = e.target.closest('a'); if (target && target.href && !target.href.startsWith(window.location.origin) && !target.href.startsWith('javascript:')) { target.setAttribute('target', '_blank'); target.setAttribute('rel', 'noopener noreferrer'); } });
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+    e.preventDefault();
+    if (els.promptInput) els.promptInput.focus();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'o') {
+    e.preventDefault();
+    if (els.btnNewChat) els.btnNewChat.click();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+    e.preventDefault();
+    if (els.btnTempChat) els.btnTempChat.click();
+  }
+});
