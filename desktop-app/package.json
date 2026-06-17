@@ -4,7 +4,7 @@
   "description": "Go Ai - Your intelligent AI assistant",
   "main": "main.js",
   "author": {
-    "name": "Go Projects",
+    "name": "Go Projects, Inc.",
     "email": "goprojects452@gmail.com"
   },
   "repository": "https://github.com/MasabIshaq/Go-Ai-Antigravity",
@@ -29,9 +29,9 @@
       "icon": "icon.png"
     },
     "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "../LICENSE.txt",
       "shortcutName": "Go Ai",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
