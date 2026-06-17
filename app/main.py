@@ -220,6 +220,10 @@ def _with_system(messages: list[dict], user: dict) -> list[dict]:
 def index():
     return FileResponse(STATIC_DIR / "index.html")
 
+@app.get("/download")
+def download_page():
+    return FileResponse(STATIC_DIR / "download.html")
+
 
 @app.get("/c/{chat_id}")
 def chat_page(chat_id: str):

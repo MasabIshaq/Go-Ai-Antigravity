@@ -58,7 +58,7 @@ html, body {
 
 /* App-like: disable text selection on mobile, custom selection color on desktop */
 @media (max-width: 768px) {
-  body, .app, .main, .sidebar, .messages-wrap, .thread, .turn, .bubble,
+  body, .app, .main, .sidebar, .messages-wrap, .thread, .turn,
   .composer-wrap, .sidebar-header, .sidebar-body, .sidebar-footer,
   .welcome, .profile-wrap {
     -webkit-user-select: none;
@@ -922,7 +922,6 @@ html, body {
   max-width: 100%;
   width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 .turn-user {
@@ -1659,10 +1658,6 @@ html, body {
   .turn-col {
     max-width: 100%;
     min-width: 0;
-  }
-
-  .bubble {
-    padding: 0;
   }
 
   /* Thinner scrollbar on mobile at the edge */
