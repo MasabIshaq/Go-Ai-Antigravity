@@ -228,6 +228,24 @@ def download_page():
 from fastapi.responses import FileResponse
 import mimetypes
 
+# Download Redirects for Official Links
+@app.get("/api/download/{platform}")
+def official_download_redirect(platform: str):
+    # These can be updated to ANY hosting link (Google Drive, MediaFire, Dropbox, or GitHub Releases)
+    # The links on your website will always look like: https://go-ai-official.vercel.app/api/download/android
+    links = {
+        "android": "https://github.com/MasabIshaq/Go-Ai-Antigravity/releases/download/v1.0.0/go-ai-v1.0.0.apk",
+        "win-setup": "https://github.com/MasabIshaq/Go-Ai-Antigravity/releases/download/v1.0.0/Go-Ai-Setup-1.0.0.exe",
+        "win-standalone": "https://github.com/MasabIshaq/Go-Ai-Antigravity/releases/download/v1.0.0/Go%20Ai.exe",
+        "linux": "https://github.com/MasabIshaq/Go-Ai-Antigravity/releases/download/v1.0.0/go-ai_1.0.0_amd64.deb"
+    }
+    
+    if platform in links:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=links[platform])
+    
+    raise HTTPException(status_code=404, detail="Download not found")
+
 @app.get("/download/file/{filename}")
 def download_file(filename: str):
     file_path = STATIC_DIR / "files" / filename
