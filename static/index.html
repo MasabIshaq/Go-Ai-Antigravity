@@ -260,9 +260,12 @@
       <label class="settings-label settings-checkbox-label">
         <input type="checkbox" id="settingsNotifications" /> Receive notifications & emails about updates
       </label>
-      <div class="dialog-actions">
-        <button type="button" class="btn-dialog-secondary" id="settingsCancel">Cancel</button>
-        <button type="button" class="btn-dialog-primary" id="settingsSave">Save</button>
+      <div class="dialog-actions" style="display: flex; justify-content: space-between; width: 100%;">
+        <button type="button" class="btn-dialog-danger" id="settingsDeleteAccount" style="background: transparent; border: 1px solid #f87171; color: #f87171;">Delete Account</button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn-dialog-secondary" id="settingsCancel">Cancel</button>
+          <button type="button" class="btn-dialog-primary" id="settingsSave">Save</button>
+        </div>
       </div>
     </div>
   </div>

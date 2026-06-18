@@ -17,3 +17,6 @@ GoAi-linux-x64/
 download-site/files/*.exe
 download-site/files/*.deb
 download-site/files/*.apk
+static/files/*.exe
+static/files/*.deb
+static/files/*.apk

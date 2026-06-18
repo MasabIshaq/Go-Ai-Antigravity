@@ -98,6 +98,7 @@ const els = {
   settingsPreviewName: $("#settingsPreviewName"),
   settingsCancel: $("#settingsCancel"),
   settingsSave: $("#settingsSave"),
+  settingsDeleteAccount: $("#settingsDeleteAccount"),
   adminPinOverlay: $("#adminPinOverlay"),
   adminPinTitle: $("#adminPinTitle"),
   adminPinMessage: $("#adminPinMessage"),
@@ -1424,6 +1425,7 @@ async function bootApp() {
   try {
     configRes = await fetchTimeout("/api/config", { credentials: "include" });
   } catch {
+    showAuth();
     els.loginError.textContent =
       "Cannot reach API. Run: python run.py  then open http://localhost:8000";
     return;
@@ -1621,22 +1623,51 @@ function setupAuth() {
     }
   });
 
-  els.otpCancel.addEventListener("click", () => els.otpOverlay.classList.add("hidden"));
+  els.otpCancel.addEventListener("click", () => {
+    els.otpOverlay.classList.add("hidden");
+    state.pendingDeleteAccount = false;
+  });
   els.otpConfirm.addEventListener("click", async () => {
     els.otpError.textContent = "";
     const code = els.otpInput.value.trim();
     if (!code) return;
     showGlobalLoader();
     try {
-      const res = await fetch("/api/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: state.pendingUserId, otp_code: code }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Invalid code");
-      els.otpOverlay.classList.add("hidden");
-      await afterAuthSuccess();
+      if (state.pendingDeleteAccount) {
+        // Delete account flow
+        const res = await fetch("/api/delete-account", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ otp_code: code }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Invalid code");
+        els.otpOverlay.classList.add("hidden");
+        state.pendingDeleteAccount = false;
+        state.user = null;
+        state.adminUnlocked = false;
+        state.messages = [];
+        state.currentChatId = null;
+        state.currentIsTemp = false;
+        state.tempChats = [];
+        state.historyChats = [];
+        if (els.thread) els.thread.innerHTML = "";
+        if (els.historyChatList) els.historyChatList.innerHTML = "";
+        showAuth();
+        showToast("Account deleted successfully.");
+      } else {
+        // Normal auth OTP flow
+        const res = await fetch("/api/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: state.pendingUserId, otp_code: code }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Invalid code");
+        els.otpOverlay.classList.add("hidden");
+        await afterAuthSuccess();
+      }
     } catch (err) {
       els.otpError.textContent = err.message;
     } finally {
@@ -1955,6 +1986,29 @@ function setupChat() {
     els.settingsOverlay.classList.add("hidden");
     showToast("Profile updated");
   });
+
+  if (els.settingsDeleteAccount) {
+    els.settingsDeleteAccount.addEventListener("click", async () => {
+      const ok = await showConfirmDialog("Delete Account", "This is permanent. All your chats, files, and settings will be erased forever. Continue?");
+      if (!ok) return;
+      showGlobalLoader();
+      try {
+        const otpRes = await api("/api/delete-account/otp", { method: "POST" });
+        const otpData = await otpRes.json();
+        hideGlobalLoader();
+        els.settingsOverlay.classList.add("hidden");
+        // Reuse OTP overlay
+        state.pendingDeleteAccount = true;
+        els.otpOverlay.classList.remove("hidden");
+        els.otpInput.value = "";
+        els.otpError.textContent = "";
+        els.otpInput.focus();
+      } catch (err) {
+        hideGlobalLoader();
+        showToast(err.message || "Failed to send verification code");
+      }
+    });
+  }
 
   els.btnAdminPanel.addEventListener("click", () => {
     els.profileMenu.classList.add("hidden");

@@ -265,6 +265,19 @@ def delete_session(token: str) -> None:
         conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
 
 
+def delete_user_account(user_id: str) -> None:
+    with get_db() as conn:
+        conn.execute("DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id = ?)", (user_id,))
+        conn.execute("DELETE FROM chat_shares WHERE owner_id = ?", (user_id,))
+        conn.execute("DELETE FROM chats WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM reports WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM user_api_keys WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM user_activities WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
 def create_chat(user_id: str, is_temp: bool = False, title: str = "New chat") -> dict:
     chat_id = str(uuid.uuid4())
     now = _now()

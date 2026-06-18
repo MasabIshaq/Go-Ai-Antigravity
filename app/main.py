@@ -59,6 +59,7 @@ from app.database import (
     verify_user_otp,
     update_user_settings,
     get_notification_users,
+    delete_user_account,
 )
 from app.openrouter import ZAIError, stream_chat
 
@@ -223,6 +224,32 @@ def index():
 @app.get("/download")
 def download_page():
     return FileResponse(STATIC_DIR / "download.html")
+
+from fastapi.responses import FileResponse
+import mimetypes
+
+@app.get("/static/files/{filename}")
+def download_file(filename: str):
+    file_path = STATIC_DIR / "files" / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    mime_type, _ = mimetypes.guess_type(filename)
+    if filename.endswith(".apk"):
+        mime_type = "application/vnd.android.package-archive"
+    elif filename.endswith(".exe"):
+        mime_type = "application/x-msdownload"
+    elif filename.endswith(".deb"):
+        mime_type = "application/vnd.debian.binary-package"
+    else:
+        mime_type = mime_type or "application/octet-stream"
+
+    return FileResponse(
+        path=file_path,
+        media_type=mime_type,
+        filename=filename,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 @app.get("/c/{chat_id}")
@@ -462,6 +489,37 @@ async def api_logout(
 ):
     delete_temp_chats(user["id"])
     logout(goai_session or "")
+    response.delete_cookie("goai_session", path="/")
+    response.delete_cookie("goai_admin", path="/")
+    return {"ok": True}
+
+
+@app.post("/api/delete-account/otp")
+async def api_delete_account_otp(background_tasks: BackgroundTasks, user: dict = Depends(current_user)):
+    user_db = get_user_by_id(user["id"])
+    import secrets
+    from datetime import datetime, timedelta, timezone
+    otp = str(secrets.randbelow(1000000)).zfill(6)
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+    set_user_otp(user["id"], otp, expires)
+    background_tasks.add_task(send_otp_email, user_db["username"], user_db["email"], otp, "Delete Account")
+    return {"ok": True, "email": user_db["email"]}
+
+class DeleteAccountBody(BaseModel):
+    otp_code: str
+
+@app.post("/api/delete-account")
+async def api_delete_account(
+    body: DeleteAccountBody,
+    response: Response,
+    user: dict = Depends(current_user),
+    goai_session: str | None = Cookie(default=None)
+):
+    if not verify_user_otp(user["id"], body.otp_code):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    delete_user_account(user["id"])
+    if goai_session:
+        logout(goai_session)
     response.delete_cookie("goai_session", path="/")
     response.delete_cookie("goai_admin", path="/")
     return {"ok": True}

@@ -36,25 +36,32 @@ def _send_email_sync(to_email: str, subject: str, html_content: str) -> bool:
     msg.attach(MIMEText("Please enable HTML to view this email.", "plain"))
     msg.attach(MIMEText(html_content, "html"))
 
-    try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_USER, to_email, msg.as_string())
-        logger.info("Email sent to %s", to_email)
-        return True
-    except smtplib.SMTPAuthenticationError:
-        logger.error(
-            "Gmail auth failed. Make sure GMAIL_USER=%s and GMAIL_APP_PASSWORD is a "
-            "16-char App Password (not your regular password). "
-            "Enable 2FA on the account and create an App Password at "
-            "https://myaccount.google.com/apppasswords",
-            GMAIL_USER,
-        )
-        return False
-    except Exception as exc:
-        logger.error("Failed to send email to %s: %s", to_email, exc)
-        return False
+    import time
+    last_exc = None
+    for attempt in range(3):
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=30) as server:
+                server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+                server.sendmail(GMAIL_USER, to_email, msg.as_string())
+            logger.info("Email sent to %s (attempt %d)", to_email, attempt + 1)
+            return True
+        except smtplib.SMTPAuthenticationError:
+            logger.error(
+                "Gmail auth failed. Make sure GMAIL_USER=%s and GMAIL_APP_PASSWORD is a "
+                "16-char App Password (not your regular password). "
+                "Enable 2FA on the account and create an App Password at "
+                "https://myaccount.google.com/apppasswords",
+                GMAIL_USER,
+            )
+            return False
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("Email attempt %d to %s failed: %s", attempt + 1, to_email, exc)
+            if attempt < 2:
+                time.sleep(1)
+    logger.error("All 3 email attempts to %s failed. Last error: %s", to_email, last_exc)
+    return False
 
 
 async def send_email(to_email: str, subject: str, html_content: str) -> bool:
