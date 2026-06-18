@@ -228,7 +228,7 @@ def download_page():
 from fastapi.responses import FileResponse
 import mimetypes
 
-@app.get("/static/files/{filename}")
+@app.get("/download/file/{filename}")
 def download_file(filename: str):
     file_path = STATIC_DIR / "files" / filename
     if not file_path.exists():
