@@ -109,6 +109,7 @@ def _otp_box(code: str) -> str:
 
 async def send_otp_email(username: str, email: str, otp_code: str, context: str = "Sign Up") -> None:
     """OTP for signup verification or 2FA login."""
+    print(f"\n[{context}] OTP for {email} is: {otp_code}\n")
     subject = f"[Action Required] Your {APP_TITLE} verification code: {otp_code}"
     html = _wrap(
         _header("Verification Required", context)
@@ -132,6 +133,7 @@ async def send_otp_email(username: str, email: str, otp_code: str, context: str 
 
 async def send_password_reset_email(username: str, email: str, reset_code: str) -> None:
     """Password reset code."""
+    print(f"\n[Password Reset] OTP for {email} is: {reset_code}\n")
     subject = f"Reset your {APP_TITLE} password"
     html = _wrap(
         _header("Password Reset", APP_TITLE)

@@ -53,7 +53,7 @@ from app.database import (
     get_password_reset_token,
     use_password_reset_token,
     get_user_by_email,
-    get_user_by_username,
+
     get_user_by_id,
     set_user_otp,
     verify_user_otp,
@@ -201,9 +201,25 @@ def _messages_for_api(messages: list[dict]) -> tuple[list[dict], bool]:
             
             if mime.startswith("image/"):
                 has_image = True
-                if url.startswith("/"):
-                    url = f"{SITE_URL}{url}"
-                msg_content.append({"type": "image_url", "image_url": {"url": url}})
+                image_base64 = ""
+                if url.startswith("/api/files/"):
+                    safe = Path(url.split("/")[-1]).name
+                    path = UPLOAD_DIR / safe
+                    if path.exists() and path.is_file():
+                        import base64
+                        try:
+                            with open(path, "rb") as img_file:
+                                image_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+                        except Exception:
+                            pass
+                
+                if image_base64:
+                    b64_url = f"data:{mime};base64,{image_base64}"
+                    msg_content.append({"type": "image_url", "image_url": {"url": b64_url}})
+                else:
+                    if url.startswith("/"):
+                        url = f"{SITE_URL}{url}"
+                    msg_content.append({"type": "image_url", "image_url": {"url": url}})
             elif preview:
                 text_parts.append(f"[Attachment {name}]:\n{preview[:4000]}")
             else:
@@ -248,8 +264,7 @@ def index():
 def download_page():
     return FileResponse(STATIC_DIR / "download.html")
 
-from fastapi.responses import FileResponse
-import mimetypes
+
 
 # Download Redirects for Official Links
 @app.get("/api/download/{platform}")
@@ -869,6 +884,7 @@ async def api_chat_stream(body: ChatRequest, user: dict = Depends(current_user))
                 used_api = True
                 yield f"data: {json.dumps({'content': token})}\n\n"
         except ZAIError as exc:
+            print(f"ZAIError in chat_stream: {exc}")
             if used_api:
                 yield "data: [DONE]\n\n"
                 return
@@ -894,7 +910,7 @@ class ResetPasswordReq(BaseModel):
     new_password: str
 
 @app.post("/api/auth/forgot-password")
-async def api_forgot_password(body: ForgotPasswordReq):
+async def api_forgot_password_otp(body: ForgotPasswordReq):
     from app.database import get_user_by_email, set_user_otp
     from app.email_service import send_password_reset_email
     import random
@@ -909,7 +925,7 @@ async def api_forgot_password(body: ForgotPasswordReq):
     return {"ok": True}
 
 @app.post("/api/auth/reset-password")
-async def api_reset_password(body: ResetPasswordReq):
+async def api_reset_password_otp(body: ResetPasswordReq):
     from app.database import get_user_by_email, verify_user_otp, update_user_password
     from app.auth import hash_password, validate_password
     user = get_user_by_email(body.email.strip().lower())
@@ -922,3 +938,4 @@ async def api_reset_password(body: ResetPasswordReq):
         raise HTTPException(status_code=400, detail=msg)
     update_user_password(user["id"], hash_password(body.new_password))
     return {"ok": True}
+

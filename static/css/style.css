@@ -912,7 +912,6 @@ html, body {
   flex-direction: column;
   gap: 14px;
   box-sizing: border-box;
-  overflow-x: hidden;
 }
 
 .turn {
@@ -1164,6 +1163,8 @@ html, body {
 .attachment-preview {
   display: flex; flex-wrap: wrap; gap: 8px;
   max-width: 680px; margin: 0 auto 8px; padding: 0 4px;
+  max-height: 120px;
+  overflow-y: auto;
 }
 .attach-chip {
   display: inline-flex; align-items: center; gap: 6px;

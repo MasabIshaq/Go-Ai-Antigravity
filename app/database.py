@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import uuid
+import secrets
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
@@ -161,6 +162,18 @@ class TursoConnectionWrapper:
     def execute(self, sql, parameters=()):
         rs = self.client.execute(sql, parameters)
         return TursoCursorWrapper(rs)
+        
+    def executemany(self, sql, parameters_list=()):
+        import libsql_client
+        stmts = [libsql_client.Statement(sql, params) for params in parameters_list]
+        self.client.batch(stmts)
+        return TursoCursorWrapper(None)
+        
+    def batch(self, stmts_with_args):
+        import libsql_client
+        stmts = [libsql_client.Statement(s[0], s[1]) for s in stmts_with_args]
+        self.client.batch(stmts)
+        return True
                 
     def commit(self):
         pass
@@ -368,22 +381,7 @@ def save_messages(chat_id: str, user_id: str, messages: list[dict], title: str |
         ).fetchone()
         if not row:
             return None
-        conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
-        for msg in messages:
-            attachments = json.dumps(msg.get("attachments") or [])
-            conn.execute(
-                """INSERT INTO messages
-                   (id, chat_id, role, content, attachments, created_at)
-                   VALUES (?,?,?,?,?,?)""",
-                (
-                    str(uuid.uuid4()),
-                    chat_id,
-                    msg["role"],
-                    msg["content"],
-                    attachments,
-                    _now(),
-                ),
-            )
+            
         new_title = title or row["title"]
         if messages and row["title"] == "New chat":
             first = next((m["content"] for m in messages if m["role"] == "user"), None)
@@ -393,10 +391,43 @@ def save_messages(chat_id: str, user_id: str, messages: list[dict], title: str |
         if messages and is_temp:
             is_temp = 0
         now = _now()
-        conn.execute(
-            "UPDATE chats SET title = ?, is_temp = ?, updated_at = ? WHERE id = ?",
-            (new_title, is_temp, now, chat_id),
-        )
+        
+        if hasattr(conn, "batch"):
+            stmts = [("DELETE FROM messages WHERE chat_id = ?", (chat_id,))]
+            for msg in messages:
+                attachments = json.dumps(msg.get("attachments") or [])
+                stmts.append((
+                    """INSERT INTO messages
+                       (id, chat_id, role, content, attachments, created_at)
+                       VALUES (?,?,?,?,?,?)""",
+                    (str(uuid.uuid4()), chat_id, msg["role"], msg["content"], attachments, _now())
+                ))
+            stmts.append((
+                "UPDATE chats SET title = ?, is_temp = ?, updated_at = ? WHERE id = ?",
+                (new_title, is_temp, now, chat_id)
+            ))
+            conn.batch(stmts)
+        else:
+            conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
+            for msg in messages:
+                attachments = json.dumps(msg.get("attachments") or [])
+                conn.execute(
+                    """INSERT INTO messages
+                       (id, chat_id, role, content, attachments, created_at)
+                       VALUES (?,?,?,?,?,?)""",
+                    (
+                        str(uuid.uuid4()),
+                        chat_id,
+                        msg["role"],
+                        msg["content"],
+                        attachments,
+                        _now(),
+                    ),
+                )
+            conn.execute(
+                "UPDATE chats SET title = ?, is_temp = ?, updated_at = ? WHERE id = ?",
+                (new_title, is_temp, now, chat_id),
+            )
     sync_user_memory(user_id, messages)
     return get_chat(chat_id, user_id)
 
@@ -425,10 +456,19 @@ def delete_chat(chat_id: str, user_id: str) -> bool:
         ).fetchone()
         if not row:
             return False
-        conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
-        conn.execute("DELETE FROM chat_shares WHERE chat_id = ?", (chat_id,))
-        conn.execute("DELETE FROM reports WHERE chat_id = ?", (chat_id,))
-        conn.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+        
+        if hasattr(conn, "batch"):
+            conn.batch([
+                ("DELETE FROM messages WHERE chat_id = ?", (chat_id,)),
+                ("DELETE FROM chat_shares WHERE chat_id = ?", (chat_id,)),
+                ("DELETE FROM reports WHERE chat_id = ?", (chat_id,)),
+                ("DELETE FROM chats WHERE id = ?", (chat_id,))
+            ])
+        else:
+            conn.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
+            conn.execute("DELETE FROM chat_shares WHERE chat_id = ?", (chat_id,))
+            conn.execute("DELETE FROM reports WHERE chat_id = ?", (chat_id,))
+            conn.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
     return True
 
 
@@ -803,5 +843,5 @@ def get_user_activities(user_id: str) -> list[dict]:
     return [{"action": r["action"], "created_at": r["created_at"]} for r in rows]
 
 def update_user_password(user_id: str, new_hash: str) -> None:
-    with _get_conn() as conn:
+    with get_db() as conn:
         conn.execute("UPDATE users SET password_hash=?, otp_code=NULL, otp_expires_at=NULL WHERE id=?", (new_hash, user_id))
