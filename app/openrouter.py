@@ -34,10 +34,15 @@ def _headers() -> dict[str, str]:
 
 async def stream_chat(
     messages: list[dict[str, str]],
+    has_image: bool = False,
     model: str | None = None,
 ) -> AsyncIterator[str]:
+    selected_model = model or DEFAULT_MODEL
+    if has_image:
+        selected_model = "glm-4v"
+
     payload = {
-        "model": model or DEFAULT_MODEL,
+        "model": selected_model,
         "messages": messages,
         "stream": True,
         "temperature": 0.7,

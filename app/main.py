@@ -178,26 +178,49 @@ def _verify_admin_pin(user: dict, pin: str) -> None:
         raise HTTPException(status_code=401, detail="Invalid S-Pin")
 
 
-def _messages_for_api(messages: list[dict]) -> list[dict]:
+def _messages_for_api(messages: list[dict]) -> tuple[list[dict], bool]:
     api_messages = []
+    has_image = False
     for msg in messages:
         content = msg.get("content") or ""
         attachments = msg.get("attachments") or []
-        if attachments:
-            parts = [content] if content else []
-            for att in attachments:
-                name = att.get("name") or "file"
-                url = att.get("url") or ""
-                preview = att.get("text_preview") or ""
-                if preview:
-                    parts.append(f"[Attachment {name}]:\n{preview[:4000]}")
-                elif att.get("type", "").startswith("image/"):
-                    parts.append(f"[User attached image: {name}]({url})")
-                else:
-                    parts.append(f"[User attached file: {name}]({url})")
-            content = "\n\n".join(parts).strip()
-        api_messages.append({"role": msg["role"], "content": content})
-    return api_messages
+        if not attachments:
+            api_messages.append({"role": msg["role"], "content": content})
+            continue
+
+        msg_content = []
+        text_parts = []
+        if content:
+            text_parts.append(content)
+        
+        for att in attachments:
+            name = att.get("name") or "file"
+            url = att.get("url") or ""
+            preview = att.get("text_preview") or ""
+            mime = att.get("type", "")
+            
+            if mime.startswith("image/"):
+                has_image = True
+                if url.startswith("/"):
+                    url = f"{SITE_URL}{url}"
+                msg_content.append({"type": "image_url", "image_url": {"url": url}})
+            elif preview:
+                text_parts.append(f"[Attachment {name}]:\n{preview[:4000]}")
+            else:
+                text_parts.append(f"[User attached file: {name}]({url})")
+        
+        if text_parts:
+            text_str = "\n\n".join(text_parts).strip()
+            msg_content.insert(0, {"type": "text", "text": text_str})
+            
+        if not has_image:
+            # If no image, collapse to string for text-only models
+            str_content = "\n\n".join(text_parts).strip()
+            api_messages.append({"role": msg["role"], "content": str_content})
+        else:
+            api_messages.append({"role": msg["role"], "content": msg_content})
+            
+    return api_messages, has_image
 
 
 def _build_system_prompt(user: dict) -> str:
@@ -612,6 +635,18 @@ async def api_update_chat(
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
         return chat
+        
+    if body.messages is not None and body.title is None:
+        chat_data = get_chat(chat_id, user["id"])
+        if chat_data and chat_data.get("title") == "New chat":
+            first_user = next((m.get("content", "") for m in body.messages if m.get("role") == "user"), "")
+            if first_user:
+                try:
+                    from app.openrouter import generate_chat_title
+                    body.title = await generate_chat_title(first_user)
+                except Exception:
+                    pass
+                    
     chat = save_messages(chat_id, user["id"], body.messages, body.title)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -794,11 +829,12 @@ async def v1_list_chats(user: dict = Depends(api_key_user)):
 @app.post("/api/v1/chat")
 async def v1_chat_stream(body: ChatRequest, user: dict = Depends(api_key_user)):
     await asyncio.to_thread(sync_user_memory, user["id"], body.messages)
-    api_messages = await asyncio.to_thread(_with_system, _messages_for_api(body.messages), user)
+    api_messages, has_image = _messages_for_api(body.messages)
+    api_messages = await asyncio.to_thread(_with_system, api_messages, user)
 
     async def event_generator():
         try:
-            async for token in stream_chat(api_messages):
+            async for token in stream_chat(api_messages, has_image):
                 yield f"data: {json.dumps({'content': token})}\n\n"
         except ZAIError:
             yield f"data: {json.dumps({'error': 'AI request failed'})}\n\n"
@@ -823,12 +859,13 @@ async def api_chat_stream(body: ChatRequest, user: dict = Depends(current_user))
                 detail="S-Pin required for questions about Go Ai internals, API, or technical details.",
             )
     await asyncio.to_thread(sync_user_memory, user["id"], body.messages)
-    api_messages = await asyncio.to_thread(_with_system, _messages_for_api(body.messages), user)
+    api_messages, has_image = _messages_for_api(body.messages)
+    api_messages = await asyncio.to_thread(_with_system, api_messages, user)
 
     async def event_generator():
         used_api = False
         try:
-            async for token in stream_chat(api_messages):
+            async for token in stream_chat(api_messages, has_image):
                 used_api = True
                 yield f"data: {json.dumps({'content': token})}\n\n"
         except ZAIError as exc:

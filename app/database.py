@@ -159,7 +159,6 @@ class TursoConnectionWrapper:
         self.row_factory = None
         
     def execute(self, sql, parameters=()):
-        # Convert sqlite3 ? placeholders to positional args or let libsql_client handle them
         rs = self.client.execute(sql, parameters)
         return TursoCursorWrapper(rs)
                 
@@ -170,19 +169,22 @@ class TursoConnectionWrapper:
         pass
 
     def close(self):
-        self.client.close()
+        pass
+
+_TURSO_CLIENT = None
 
 @contextmanager
 def get_db():
+    global _TURSO_CLIENT
     if _USE_TURSO:
         import libsql_client
-        # Force HTTP instead of WebSockets for Vercel serverless compatibility
-        url = TURSO_DATABASE_URL.replace("libsql://", "https://")
-        client = libsql_client.create_client_sync(
-            url=url,
-            auth_token=TURSO_AUTH_TOKEN,
-        )
-        conn = TursoConnectionWrapper(client)
+        if _TURSO_CLIENT is None:
+            url = TURSO_DATABASE_URL.replace("libsql://", "https://")
+            _TURSO_CLIENT = libsql_client.create_client_sync(
+                url=url,
+                auth_token=TURSO_AUTH_TOKEN,
+            )
+        conn = TursoConnectionWrapper(_TURSO_CLIENT)
     else:
         conn = sqlite3.connect(str(DB_PATH), timeout=30, check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
@@ -195,7 +197,9 @@ def get_db():
         conn.rollback()
         raise
     finally:
-        conn.close()
+        if not _USE_TURSO:
+            conn.close()
+
 
 
 def db_health() -> dict:

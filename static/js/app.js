@@ -802,7 +802,6 @@ async function streamResponse(adminPin = null) {
             gotContent = true;
             showAssistantBubble();
           }
-          await new Promise(r => setTimeout(r, 40)); // Slow down typing speed
           state.messages[idx].content += data.content;
           updateContent();
         }
