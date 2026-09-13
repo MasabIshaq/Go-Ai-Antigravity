@@ -238,7 +238,7 @@ function syncChatUrl(chatId, replace = false) {
 }
 
 function setPageTitle(title, isTemp = false) {
-  const base = (title || "Go Ai").trim() || "Go Ai";
+  const base = (title || "Go AI").trim() || "Go AI";
   document.title = base + (isTemp ? " (temp)" : "");
 }
 
@@ -435,11 +435,11 @@ function buildAssistantTurn(content, streaming = false, msgIndex = -1) {
   turn.className = "turn turn-assistant";
   turn.dataset.msgIndex = msgIndex;
   turn.innerHTML = `
-    <div class="turn-avatar turn-avatar-ai${streaming ? " generating" : ""}" title="Go Ai">
-      <img src="/logo.png" alt="Go Ai" />
+    <div class="turn-avatar turn-avatar-ai${streaming ? " generating" : ""}" title="Go AI">
+      <img src="/logo.png" alt="Go AI" />
     </div>
     <div class="turn-col">
-      <span class="turn-sender">Go Ai</span>
+      <span class="turn-sender">Go AI</span>
       <div class="bubble">
         <div class="turn-content${streaming ? " typing-cursor" : ""}"></div>
       </div>
@@ -456,11 +456,11 @@ function buildTypingTurn() {
   const turn = document.createElement("article");
   turn.className = "turn turn-assistant turn-typing";
   turn.innerHTML = `
-    <div class="turn-avatar turn-avatar-ai generating" title="Go Ai">
-      <img src="/logo.png" alt="Go Ai" />
+    <div class="turn-avatar turn-avatar-ai generating" title="Go AI">
+      <img src="/logo.png" alt="Go AI" />
     </div>
     <div class="turn-col">
-      <span class="turn-sender">Go Ai</span>
+      <span class="turn-sender">Go AI</span>
       <div class="bubble bubble-typing">
         <span class="typing-dot"></span>
         <span class="typing-dot"></span>
@@ -802,6 +802,7 @@ async function streamResponse(adminPin = null) {
             gotContent = true;
             showAssistantBubble();
           }
+          await new Promise(r => setTimeout(r, 40)); // Slow down typing speed
           state.messages[idx].content += data.content;
           updateContent();
         }
@@ -906,7 +907,7 @@ async function requireAdminPinForChat(text) {
   if (!state.user?.is_admin_account || !isSensitiveAdminQuery(text)) return null;
   const pin = await showAdminPinDialog(
     "S-Pin required",
-    "Enter S-Pin to ask about Go Ai internals, API, languages, or files."
+    "Enter S-Pin to ask about Go AI internals, API, languages, or files."
   );
   if (!pin) return false;
   return pin;
@@ -1060,7 +1061,7 @@ async function shareChatById(chatId) {
   // Use native share sheet on mobile (Android/iOS)
   if (navigator.share) {
     try {
-      await navigator.share({ title: "Go Ai Chat", url: shareUrl });
+      await navigator.share({ title: "Go AI Chat", url: shareUrl });
       return;
     } catch (err) {
       if (err.name === "AbortError") return; // User dismissed, do nothing
@@ -1152,7 +1153,7 @@ async function openAdminPanel() {
       <div style="margin-top: 20px;">
         <label style="display:flex; align-items:center; gap: 8px;">
           <input type="checkbox" id="serverStopToggle" ${serverStopped ? 'checked' : ''}>
-          <strong>Stop Go Ai Server</strong>
+          <strong>Stop Go AI Server</strong>
         </label>
         <p class="settings-hint">When checked, users will receive "Server is stop" instead of AI responses.</p>
       </div>
@@ -1311,7 +1312,7 @@ function setupSpeechRecognition() {
   state.recognition.onend = () => {
     state.isListening = false;
     els.btnMic.classList.remove("listening");
-    els.composerHint.textContent = "Go Ai can make mistakes. Check important info.";
+    els.composerHint.textContent = "Go AI can make mistakes. Check important info.";
     updateSendButton();
   };
 
@@ -2063,7 +2064,7 @@ async function init() {
     setupChat();
     setupSpeechRecognition();
   } catch (err) {
-    console.error("Go Ai setup error:", err);
+    console.error("Go AI setup error:", err);
     hideSplash();
     return;
   }
@@ -2071,7 +2072,7 @@ async function init() {
   try {
     await bootApp();
   } catch (err) {
-    console.error("Go Ai boot error:", err);
+    console.error("Go AI boot error:", err);
     if (els.loginError) {
       els.loginError.textContent =
         "Cannot connect. Run: python run.py  then open http://localhost:8000";
@@ -2101,5 +2102,71 @@ document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
     e.preventDefault();
     if (els.btnTempChat) els.btnTempChat.click();
+  }
+});
+
+
+els.btnForgotPassword.addEventListener("click", () => {
+  els.forgotPasswordError.textContent = "";
+  els.forgotPasswordEmail.value = els.loginForm.email.value || "";
+  els.forgotPasswordOverlay.classList.remove("hidden");
+});
+
+els.forgotPasswordCancel.addEventListener("click", () => {
+  els.forgotPasswordOverlay.classList.add("hidden");
+});
+
+els.forgotPasswordSend.addEventListener("click", async () => {
+  const email = els.forgotPasswordEmail.value.trim();
+  if (!email) {
+    els.forgotPasswordError.textContent = "Please enter your email";
+    return;
+  }
+  els.forgotPasswordSend.disabled = true;
+  els.forgotPasswordSend.textContent = "Sending...";
+  try {
+    await api("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    });
+    els.forgotPasswordOverlay.classList.add("hidden");
+    els.resetPasswordError.textContent = "";
+    els.resetPasswordCode.value = "";
+    els.resetPasswordNew.value = "";
+    els.resetPasswordOverlay.classList.remove("hidden");
+  } catch (err) {
+    els.forgotPasswordError.textContent = err.message;
+  } finally {
+    els.forgotPasswordSend.disabled = false;
+    els.forgotPasswordSend.textContent = "Send Code";
+  }
+});
+
+els.resetPasswordCancel.addEventListener("click", () => {
+  els.resetPasswordOverlay.classList.add("hidden");
+});
+
+els.resetPasswordConfirm.addEventListener("click", async () => {
+  const email = els.forgotPasswordEmail.value.trim();
+  const code = els.resetPasswordCode.value.trim();
+  const new_password = els.resetPasswordNew.value;
+  if (!code || !new_password) {
+    els.resetPasswordError.textContent = "Please fill all fields";
+    return;
+  }
+  els.resetPasswordConfirm.disabled = true;
+  els.resetPasswordConfirm.textContent = "Resetting...";
+  try {
+    await api("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ email, code, new_password })
+    });
+    els.resetPasswordOverlay.classList.add("hidden");
+    showToast("Password reset successfully. Please log in.");
+  } catch (err) {
+    els.resetPasswordError.textContent = err.message;
+  } finally {
+    els.resetPasswordConfirm.disabled = false;
+    els.resetPasswordConfirm.textContent = "Reset Password";
   }
 });

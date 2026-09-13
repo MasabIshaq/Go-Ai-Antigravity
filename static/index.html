@@ -5,12 +5,53 @@
   <meta name="google-site-verification" content="wBoDGlCrBIuf5JgSE9r7FG6rpSghVHC8eJLfYrFgjmY" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#10a37f" />
-  <meta name="description" content="Go Ai — Professional AI Assistant by Go Projects" />
+  <meta name="description" content="Go AI is a personal, intelligent and secure AI assistant powered by Go Solo Realistic and built by Go Projects." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Go Ai" />
+  <meta name="apple-mobile-web-app-title" content="Go AI" />
+  
+  <link rel="canonical" href="https://go-ai-official.vercel.app/" />
+  <meta property="og:title" content="Go AI – Personal AI Assistant | Go Projects" />
+  <meta property="og:description" content="Go AI is a personal, intelligent and secure AI assistant powered by Go Solo Realistic and built by Go Projects." />
+  <meta property="og:url" content="https://go-ai-official.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://go-ai-official.vercel.app/logo.png" />
+  
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Go AI – Personal AI Assistant | Go Projects" />
+  <meta name="twitter:description" content="Go AI is a personal, intelligent and secure AI assistant powered by Go Solo Realistic and built by Go Projects." />
+  <meta name="twitter:image" content="https://go-ai-official.vercel.app/logo.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Go AI",
+    "url": "https://go-ai-official.vercel.app/",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Go Projects"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Go AI",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Web",
+    "url": "https://go-ai-official.vercel.app/",
+    "publisher": {
+      "@type": "Organization",
+      "name": "Go Projects"
+    },
+    "description": "Go AI is a personal, intelligent and secure AI assistant powered by Go Solo Realistic and built by Go Projects."
+  }
+  </script>
+
   <link rel="apple-touch-icon" href="/logo.png" />
-  <title>Go Ai</title>
+  <title>Go AI – Personal AI Assistant | Go Projects</title>
   <link rel="icon" type="image/png" href="/logo.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/css/style.css?v=20" />
@@ -30,17 +71,17 @@
 </head>
 <body>
   <div id="splash" class="splash">
-    <img src="/logo.png" alt="Go Ai" class="splash-logo" />
+    <img src="/logo.png" alt="Go AI" class="splash-logo" />
   </div>
 
   <div id="authScreen" class="auth-screen hidden">
     <div class="landing-content">
       <div class="landing-brand">
-        <img src="/logo.png" alt="Go Ai" class="landing-logo" />
-        <span class="landing-brand-name">Go Ai</span>
+        <img src="/logo.png" alt="Go AI" class="landing-logo" />
+        <span class="landing-brand-name">Go AI</span>
       </div>
-      <h1 class="landing-title">Welcome to Go Ai</h1>
-      <p class="landing-sub">Your Personal, Intelligent &amp; Secure AI Assistant — built by Go Projects.</p>
+      <h1 class="landing-title">Go AI</h1>
+      <p class="landing-sub">Personal, Intelligent &amp; Secure AI Assistant by Go Projects. Powered by Go Solo Realistic.</p>
       <ul class="landing-features">
         <li><span class="feature-icon">✨</span> Advanced Conversational AI</li>
         <li><span class="feature-icon">🔒</span> Bank-level Security &amp; 2FA</li>
@@ -52,7 +93,7 @@
       <div class="auth-card">
         <div class="auth-header">
           <img src="/logo.png" alt="" class="auth-logo" />
-          <h2 class="auth-title">Sign in to Go Ai</h2>
+          <h2 class="auth-title">Sign in to Go AI</h2>
           <p class="auth-tagline">Enter your details below to continue</p>
         </div>
         <div class="auth-tabs">
@@ -114,7 +155,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <img src="/logo.png" alt="" class="sidebar-brand-icon" width="24" height="24" />
-        <span class="sidebar-brand">Go Ai</span>
+        <span class="sidebar-brand">Go AI</span>
         <button type="button" class="btn-icon" id="btnNotifications" title="Account Activity">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
         </button>
@@ -195,14 +236,14 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
             </button>
             <div class="composer-field">
-              <span class="composer-ph" id="composerPlaceholder">Message Go Ai...</span>
+              <span class="composer-ph" id="composerPlaceholder">Message Go AI...</span>
               <textarea id="promptInput" rows="1" autocomplete="off"></textarea>
             </div>
             <button type="submit" class="btn-send" id="btnSend" disabled aria-label="Send">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
           </div>
-          <p class="composer-hint" id="composerHint">Go Ai can make mistakes. Check important info.</p>
+          <p class="composer-hint" id="composerHint">Go AI can make mistakes. Check important info.</p>
         </form>
       </footer>
     </main>
@@ -310,7 +351,7 @@
   <div class="dialog-overlay hidden" id="apiKeysOverlay">
     <div class="dialog-card admin-panel-card">
       <h3>API keys</h3>
-      <p class="settings-hint">Use keys with <a href="/developers" target="_blank">Go Ai API</a>. Keys are shown once when created.</p>
+      <p class="settings-hint">Use keys with <a href="/developers" target="_blank">Go AI API</a>. Keys are shown once when created.</p>
       <div id="apiKeysList" class="api-keys-list"></div>
       <div class="dialog-actions" style="justify-content:space-between">
         <button type="button" class="btn-dialog-primary" id="apiKeyCreate">Create new key</button>

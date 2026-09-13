@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://go-ai-official.vercel.app/sitemap.xml

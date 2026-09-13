@@ -1668,3 +1668,5 @@ html, body {
     scrollbar-width: thin;
   }
 }
+
+*::-webkit-scrollbar-corner { background: transparent; }

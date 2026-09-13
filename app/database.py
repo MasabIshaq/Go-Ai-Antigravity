@@ -797,3 +797,7 @@ def get_user_activities(user_id: str) -> list[dict]:
     with get_db() as conn:
         rows = conn.execute("SELECT action, created_at FROM user_activities WHERE user_id=? ORDER BY created_at DESC LIMIT 50", (user_id,)).fetchall()
     return [{"action": r["action"], "created_at": r["created_at"]} for r in rows]
+
+def update_user_password(user_id: str, new_hash: str) -> None:
+    with _get_conn() as conn:
+        conn.execute("UPDATE users SET password_hash=?, otp_code=NULL, otp_expires_at=NULL WHERE id=?", (new_hash, user_id))
